@@ -6,6 +6,7 @@ import { supabase, isConfigured } from '../lib/supabase'
 import { SPORT_CONFIG, ELIGIBILITY_LIMITS } from '../lib/constants'
 import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
+import SearchableSelect from '../components/SearchableSelect'
 
 const MINORS_MIN_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -177,10 +178,8 @@ function MinorsRosterRow({ contract, onCallUp, callingUp, isCommissioner }) {
 
 export default function MinorsPage() {
   const { globalSport: sport } = useGlobalSport()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [showDropdown, setShowDropdown] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [rawResults, setRawResults] = useState([])
   const [playerStats, setPlayerStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [moveType, setMoveType] = useState('minors')
@@ -205,64 +204,66 @@ export default function MinorsPage() {
   const minorsCount = minorsRoster.filter(c => c.status === 'minors').length
   const draftedCount = minorsRoster.filter(c => c.status === 'drafted').length
 
-  // Search handler with debounce
-  let searchTimeout = null
-  async function handleSearch(query) {
-    setSearchQuery(query)
+  async function searchPlayers(query) {
     setSelectedPlayer(null)
     setPlayerStats(null)
     setManualMode(false)
+    if (query.length < 2) return []
 
-    if (query.length < 2) { setShowDropdown(false); return }
-
-    clearTimeout(searchTimeout)
-    searchTimeout = setTimeout(async () => {
-      if (sport === 'mlb') {
-        try {
-          const res = await fetch(`/api/mlb/search?q=${encodeURIComponent(query)}`)
-          const data = await res.json()
-          const people = (data.people || []).slice(0, 8).map(p => ({
-            id: p.id,
-            name: p.fullName,
-            pos: p.primaryPosition?.abbreviation || '—',
-            team: p.currentTeam?.name || '—',
-            level: p.sport?.name || 'MLB',
-            fromApi: true,
-          }))
-          setSearchResults(people)
-          setShowDropdown(true)
-          if (people.length === 0) setManualMode(true)
-        } catch {
-          setSearchResults([])
-          setManualMode(true)
-          setShowDropdown(false)
-        }
-      } else {
-        // Search existing players in Supabase for NFL/NBA
-        if (!isConfigured) { setShowDropdown(false); return }
-        const { data } = await supabase
-          .from('players')
-          .select('id, name, position, real_world_team')
-          .eq('sport', sport)
-          .ilike('name', `%${query}%`)
-          .limit(8)
-        setSearchResults((data || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          pos: p.position,
-          team: p.real_world_team,
-          fromApi: false,
-        })))
-        setShowDropdown(true)
-        if (!data?.length) setManualMode(true)
+    if (sport === 'mlb') {
+      try {
+        const res = await fetch(`/api/mlb/search?q=${encodeURIComponent(query)}`)
+        const data = await res.json()
+        const people = (data.people || []).slice(0, 8).map(p => ({
+          id: p.id, name: p.fullName,
+          pos: p.primaryPosition?.abbreviation || '—',
+          team: p.currentTeam?.name || '—',
+          level: p.sport?.name || 'MLB',
+          fromApi: true,
+        }))
+        setRawResults(people)
+        if (people.length === 0) setManualMode(true)
+        return people.map(p => ({
+          value: String(p.id),
+          label: p.name,
+          sublabel: p.team,
+          badge: p.level !== 'Major League Baseball' ? p.level : undefined,
+        }))
+      } catch {
+        setManualMode(true)
+        return []
       }
-    }, 350)
+    } else {
+      if (!isConfigured) return []
+      const { data } = await supabase
+        .from('players')
+        .select('id, name, position, real_world_team')
+        .eq('sport', sport)
+        .ilike('name', `%${query}%`)
+        .limit(8)
+      const people = (data || []).map(p => ({
+        id: p.id, name: p.name,
+        pos: p.position, team: p.real_world_team,
+        fromApi: false,
+      }))
+      setRawResults(people)
+      if (!people.length) setManualMode(true)
+      return people.map(p => ({
+        value: String(p.id),
+        label: p.name,
+        sublabel: `${p.real_world_team} · ${p.position}`,
+      }))
+    }
+  }
+
+  function handlePlayerSelect(opt) {
+    if (!opt) { setSelectedPlayer(null); setPlayerStats(null); return }
+    const player = rawResults.find(p => String(p.id) === opt.value)
+    if (player) selectPlayer(player)
   }
 
   async function selectPlayer(player) {
     setSelectedPlayer(player)
-    setSearchQuery(player.name)
-    setShowDropdown(false)
     setManualMode(false)
 
     // Fetch career stats for eligibility
@@ -374,7 +375,7 @@ export default function MinorsPage() {
       })
       setSelectedPlayer(null)
       setPlayerStats(null)
-      setSearchQuery('')
+      setRawResults([])
       setManualMode(false)
       setManualName('')
       setManualPos('')
@@ -484,40 +485,16 @@ export default function MinorsPage() {
             <div className="font-mono text-[10px] tracking-wider text-txt3 uppercase mb-4 pb-2.5 border-b border-border">
               Add Player
             </div>
-            <div className="relative mb-3">
+            <div className="mb-3">
               <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">
                 Search {sport === 'mlb' ? '(MLB Stats API — all levels)' : `(${sport.toUpperCase()} players)`}
               </label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => handleSearch(e.target.value)}
-                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+              <SearchableSelect
+                value={selectedPlayer?.name ?? ''}
+                onChange={handlePlayerSelect}
+                onSearch={searchPlayers}
                 placeholder={sport === 'mlb' ? 'Search MLB prospects & players...' : 'Search player name...'}
-                className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent transition-colors"
               />
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border2 rounded-sm shadow-lg z-10 max-h-[250px] overflow-y-auto">
-                  {searchResults.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectPlayer(r)}
-                      className="w-full text-left px-3 py-2.5 hover:bg-surface2 cursor-pointer flex justify-between items-center border-b border-border last:border-b-0"
-                    >
-                      <div>
-                        <div className="text-[13px] text-txt font-medium">
-                          {r.name}
-                          {r.level && r.level !== 'Major League Baseball' && (
-                            <span className="font-mono text-[9px] text-txt3 ml-1.5">{r.level}</span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-txt3">{r.team}</div>
-                      </div>
-                      <span className="font-mono text-[10px] text-txt3">{r.pos}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Manual Entry Fallback */}
