@@ -1,7 +1,7 @@
 import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 
 const STATUS_BADGES = {
@@ -67,12 +67,11 @@ function RosterTable({ contracts, sport }) {
     )
   }
 
-  const byName = (a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')
-  const active = contracts.filter(c => c.status === 'active').sort(byName)
-  const dl = contracts.filter(c => c.status === 'dl').sort(byName)
-  const ir = contracts.filter(c => c.status === 'ir').sort(byName)
-  const sspd = contracts.filter(c => c.status === 'sspd').sort(byName)
-  const minors = contracts.filter(c => c.status === 'minors' || c.status === 'drafted').sort(byName)
+  const active = contracts.filter(c => c.status === 'active')
+  const dl = contracts.filter(c => c.status === 'dl')
+  const ir = contracts.filter(c => c.status === 'ir')
+  const sspd = contracts.filter(c => c.status === 'sspd')
+  const minors = contracts.filter(c => c.status === 'minors' || c.status === 'drafted')
 
   const renderSection = (label, players, showStatus = false) => {
     if (players.length === 0) return null
@@ -143,7 +142,7 @@ function RosterTable({ contracts, sport }) {
 }
 
 export default function Dashboard() {
-  const activeSport = useActiveSport()
+  const { globalSport: activeSport } = useGlobalSport()
   const { team } = useAuth()
   const { data: allContracts, isLoading } = useTeamRoster(team?.id)
   const { data: capStates } = useTeamCapState(team?.id)

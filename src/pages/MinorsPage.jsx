@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster } from '../hooks/useTeamData'
 import { supabase, isConfigured } from '../lib/supabase'
 import { SPORT_CONFIG, ELIGIBILITY_LIMITS } from '../lib/constants'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 
 const MINORS_MIN_MS = 5 * 24 * 60 * 60 * 1000
@@ -176,7 +176,7 @@ function MinorsRosterRow({ contract, onCallUp, callingUp, isCommissioner }) {
 }
 
 export default function MinorsPage() {
-  const sport = useActiveSport()
+  const { globalSport: sport } = useGlobalSport()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -198,8 +198,7 @@ export default function MinorsPage() {
 
   // Current minors/drafted roster
   const minorsRoster = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && (c.status === 'minors' || c.status === 'drafted'))
-      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
+    (allContracts || []).filter(c => c.sport === sport && (c.status === 'minors' || c.status === 'drafted')),
     [allContracts, sport]
   )
 

@@ -29,34 +29,24 @@ export default function Header() {
 
         {/* Global Sport Selector */}
         <div className="flex gap-1">
-          {[
-            { id: 'all', label: 'ALL' },
-            { id: 'nfl', label: 'NFL' },
-            { id: 'nba', label: 'NBA' },
-            { id: 'mlb', label: 'MLB' },
-          ].map(({ id, label }) => {
-            const isActive = globalSport === id
-            const isSport = id !== 'all'
+          {['nfl', 'nba', 'mlb'].map(sport => {
+            const isActive = globalSport === sport
             return (
               <button
-                key={id}
-                onClick={() => setGlobalSport(id)}
+                key={sport}
+                onClick={() => setGlobalSport(sport)}
                 className="font-mono text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-sm cursor-pointer border transition-all duration-75"
-                style={isActive ? (isSport ? {
-                  color: `var(--color-${id})`,
-                  borderColor: `color-mix(in srgb, var(--color-${id}) 50%, transparent)`,
-                  background: `color-mix(in srgb, var(--color-${id}) 15%, transparent)`,
+                style={isActive ? {
+                  color: `var(--color-${sport})`,
+                  borderColor: `color-mix(in srgb, var(--color-${sport}) 50%, transparent)`,
+                  background: `color-mix(in srgb, var(--color-${sport}) 15%, transparent)`,
                 } : {
-                  color: 'var(--color-txt)',
-                  borderColor: 'var(--color-border2)',
-                  background: 'var(--color-surface3)',
-                }) : {
                   color: 'var(--color-txt3)',
                   borderColor: 'transparent',
                   background: 'transparent',
                 }}
               >
-                {label}
+                {SPORT_CONFIG[sport].label}
               </button>
             )
           })}
@@ -64,7 +54,6 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden md:flex items-center gap-2">
         {['nfl', 'nba', 'mlb'].map(sport => (
           <div
             key={sport}
@@ -78,7 +67,6 @@ export default function Header() {
             {SPORT_CONFIG[sport].label} ${capBySport[sport] ?? '—'}
           </div>
         ))}
-        </div>
 
         {user && (
           <button

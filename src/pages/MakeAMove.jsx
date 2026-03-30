@@ -4,10 +4,11 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
 import { supabase } from '../lib/supabase'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
 import Select from '../components/Select'
+import SearchableSelect from '../components/SearchableSelect'
 import MinorsPage from './MinorsPage'
 import PlaceholderPage from './PlaceholderPage'
 
@@ -54,20 +55,22 @@ function ReserveTab({ sport, onSuccessSwitch }) {
   const [selectedDest, setSelectedDest] = useState('')
   const [note, setNote] = useState('')
 
-  const capState = capStates?.find(cs => cs.sport === sport)
-
   const activePlayers = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && c.status === 'active')
+    (allContracts || []).filter(c => (!sport || c.sport === sport) && c.status === 'active')
       .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
     [allContracts, sport]
   )
 
   const playerOptions = activePlayers.map(c => ({
     value: c.id,
-    label: `${c.players?.name} — ${c.players?.position} — $${c.salary}`,
+    label: c.players?.name || '—',
+    sublabel: `${sport ? '' : c.sport?.toUpperCase() + ' · '}${c.players?.position} — $${c.salary}`,
   }))
 
   const selectedContract = activePlayers.find(c => c.id === selectedPlayerId)
+  // When showing all sports, derive effective sport from selected player
+  const effectiveSport = selectedContract?.sport || sport
+  const capState = capStates?.find(cs => cs.sport === effectiveSport)
 
   const destOptions = DESTINATIONS.map(d => ({ value: d.id, label: d.label }))
 
@@ -98,7 +101,7 @@ function ReserveTab({ sport, onSuccessSwitch }) {
           .from('cap_state')
           .update({ spent: capState.spent - credit, updated_at: now })
           .eq('team_id', team.id)
-          .eq('sport', sport)
+          .eq('sport', effectiveSport)
       }
 
       const { error: txErr } = await supabase
@@ -107,7 +110,7 @@ function ReserveTab({ sport, onSuccessSwitch }) {
           type: `move_to_${destId}`,
           team_id: team.id,
           player_id: contract.player_id,
-          sport,
+          sport: effectiveSport,
           notes: note || `${contract.players?.name} moved to ${destId.toUpperCase()}`,
           submitted_by: null,
         })
@@ -139,12 +142,11 @@ function ReserveTab({ sport, onSuccessSwitch }) {
           <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">
             Player
           </label>
-          <Select
-            value={selectedPlayerId}
-            onChange={setSelectedPlayerId}
+          <SearchableSelect
+            value={activePlayers.find(c => c.id === selectedPlayerId)?.players?.name ?? ''}
+            onChange={opt => setSelectedPlayerId(opt?.value ?? '')}
             options={playerOptions}
-            placeholder="— Select player —"
-            disabledMessage="No active players"
+            placeholder="Search active roster..."
           />
         </div>
 
@@ -386,7 +388,11 @@ function ActivateTab({ sport, highlightId }) {
 // Main MakeAMove page
 // ============================================================
 export default function MakeAMove({ onNavigate }) {
-  const sport = useActiveSport()
+  const { globalSport, lastIndividualSport } = useGlobalSport()
+  // null = show all sports in player list (sport derived from selected contract)
+  const sportFilter = globalSport === 'all' ? null : globalSport
+  // ActivateTab and SportTabs still need a specific sport context
+  const sport = sportFilter || lastIndividualSport
   const [activeTab, setActiveTab] = useState('reserve')
   const [highlightId, setHighlightId] = useState(null)
 
@@ -417,15 +423,20 @@ export default function MakeAMove({ onNavigate }) {
       <SportTabs />
 
       {/* Inner Tabs */}
-      <div className="flex gap-0 mb-6 border-b border-border">
+      <div className="flex mb-6 border-b border-border">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2.5 border-b-2 transition-colors cursor-pointer bg-transparent ${
+            style={{
+              padding: '8px 16px',
+              borderBottom: `2px solid ${activeTab === tab.id ? 'var(--color-accent)' : 'transparent'}`,
+              marginBottom: '-1px',
+            }}
+            className={`font-mono text-[11px] tracking-wider uppercase transition-colors cursor-pointer bg-transparent flex-shrink-0 ${
               activeTab === tab.id
-                ? 'border-accent text-txt'
-                : 'border-transparent text-txt3 hover:text-txt2'
+                ? 'text-txt'
+                : 'text-txt3 hover:text-txt2'
             }`}
           >
             {tab.label}
@@ -434,7 +445,7 @@ export default function MakeAMove({ onNavigate }) {
       </div>
 
       {activeTab === 'reserve' && (
-        <ReserveTab sport={sport} onSuccessSwitch={handleReserveSuccess} />
+        <ReserveTab sport={sportFilter} onSuccessSwitch={handleReserveSuccess} />
       )}
       {activeTab === 'activate' && (
         <ActivateTab sport={sport} highlightId={highlightId} />

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import { supabase, isConfigured } from '../lib/supabase'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
@@ -362,13 +362,13 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
 }
 
 export default function MyRoster() {
-  const activeSport = useActiveSport()
+  const { globalSport } = useGlobalSport()
   const { team } = useAuth()
   const { data: allContracts, isLoading } = useTeamRoster(team?.id)
   const { data: capStates } = useTeamCapState(team?.id)
 
-  const sportContracts = allContracts?.filter(c => c.sport === activeSport) || []
-  const sportCapState = capStates?.find(cs => cs.sport === activeSport)
+  const showAll = globalSport === 'all'
+  const sports = showAll ? ['nfl', 'nba', 'mlb'] : [globalSport]
 
   return (
     <div>
@@ -385,17 +385,37 @@ export default function MyRoster() {
 
       <SportTabs />
 
-      <CapSummary capState={sportCapState} sport={activeSport} />
-
       {isLoading ? (
         <div className="text-txt3 text-center py-12 font-mono text-[11px]">Loading roster...</div>
       ) : (
-        <RosterTable
-          contracts={sportContracts}
-          sport={activeSport}
-          team={team}
-          capState={sportCapState}
-        />
+        <div className={showAll ? 'space-y-8' : ''}>
+          {sports.map(sport => {
+            const sportContracts = allContracts?.filter(c => c.sport === sport) || []
+            const sportCapState = capStates?.find(cs => cs.sport === sport)
+            return (
+              <div key={sport}>
+                {showAll && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className="font-mono text-[11px] font-semibold tracking-wider uppercase"
+                      style={{ color: `var(--color-${sport})` }}
+                    >
+                      {sport.toUpperCase()}
+                    </span>
+                    <div className="flex-1 border-t border-border" />
+                  </div>
+                )}
+                <CapSummary capState={sportCapState} sport={sport} />
+                <RosterTable
+                  contracts={sportContracts}
+                  sport={sport}
+                  team={team}
+                  capState={sportCapState}
+                />
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

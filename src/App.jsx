@@ -17,6 +17,7 @@ import FaBidTrackerPage from './pages/FaBidTracker'
 import MinorsPage from './pages/MinorsPage'
 import MakeAMove from './pages/MakeAMove'
 import Calculators from './pages/Calculators'
+import CommissionerDashboard from './pages/CommissionerDashboard'
 import {
   LayoutDashboard, Clock, ArrowRightLeft, Menu,
   X, Users, BarChart3, ScrollText, Calculator, Shield
@@ -172,7 +173,7 @@ function AppShell() {
       pageContent = <MakeAMove onNavigate={setActivePage} />
       break
     case 'commissioner':
-      pageContent = <PlaceholderPage title="Commissioner Dashboard" description="League administration" />
+      pageContent = <CommissionerDashboard />
       break
     default:
       pageContent = <HomePage onNavigate={setActivePage} />

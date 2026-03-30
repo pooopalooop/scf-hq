@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useTeamCapState, useTeamRoster } from '../hooks/useTeamData'
 import { supabase, isConfigured } from '../lib/supabase'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import { SPORT_CONFIG, calcFaMinimum } from '../lib/constants'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
+import SearchableSelect from '../components/SearchableSelect'
 
 function formatCountdown(msLeft) {
   if (msLeft <= 0) return { text: 'EXPIRED', color: 'text-red' }
@@ -65,12 +66,13 @@ function ActiveBidsTab({ sport, onOutbid }) {
     queryKey: ['fa_bids', 'active', sport],
     queryFn: async () => {
       if (!isConfigured) return []
-      const { data, error } = await supabase
+      let query = supabase
         .from('fa_bids')
         .select('*, teams:bidding_team_id(name)')
-        .eq('sport', sport)
         .in('status', ['active'])
         .order('expires_at', { ascending: true })
+      if (sport) query = query.eq('sport', sport)
+      const { data, error } = await query
       if (error) throw error
       return data
     },
@@ -84,7 +86,7 @@ function ActiveBidsTab({ sport, onOutbid }) {
   if (!bids?.length) {
     return (
       <div className="text-txt3 text-center py-12 font-mono text-[11px]">
-        No active bids for {sport.toUpperCase()}
+        No active bids{sport ? ` for ${sport.toUpperCase()}` : ''}
       </div>
     )
   }
@@ -108,8 +110,6 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
   const [salary, setSalary] = useState('')
   const [years, setYears] = useState(1)
   const [correspondingMove, setCorrespondingMove] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [showDropdown, setShowDropdown] = useState(false)
   const [manualMode, setManualMode] = useState(false)
   const [manualPos, setManualPos] = useState('')
   const [manualTeam, setManualTeam] = useState('')
@@ -175,45 +175,45 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
   }
   const canSubmit = Object.values(checks).every(v => v === 'pass') && playerName.trim()
 
-  // Player search
-  async function handleSearch(query) {
-    setPlayerName(query)
+  // Player search — returns SearchableSelect-compatible options
+  async function searchPlayers(query) {
     setNominationError('')
     setTouched(true)
-    if (query.length < 2) { setShowDropdown(false); return }
-
     if (sport === 'mlb') {
       try {
         const res = await fetch(`/api/mlb/search?q=${encodeURIComponent(query)}`)
         const data = await res.json()
-        const people = (data.people || []).slice(0, 8).map(p => ({
-          name: p.fullName,
-          pos: p.primaryPosition?.abbreviation || '—',
-          team: p.currentTeam?.name || '—',
-          level: p.sport?.name || 'MLB',
-        }))
-        setSearchResults(people)
+        const people = (data.people || []).slice(0, 8)
         if (people.length === 0) setManualMode(true)
+        return people.map(p => ({
+          value: p.fullName,
+          label: p.fullName,
+          sublabel: p.currentTeam?.name || '—',
+          badge: p.primaryPosition?.abbreviation || '—',
+        }))
       } catch {
-        setSearchResults([])
         setManualMode(true)
+        return []
       }
     } else {
-      if (!isConfigured) { setSearchResults([]); setShowDropdown(true); return }
+      if (!isConfigured) return []
       const { data } = await supabase
         .from('players')
         .select('name, position, real_world_team')
         .eq('sport', sport)
         .ilike('name', `%${query}%`)
         .limit(8)
-      setSearchResults((data || []).map(p => ({ name: p.name, pos: p.position, team: p.real_world_team })))
+      return (data || []).map(p => ({
+        value: p.name,
+        label: p.name,
+        sublabel: p.real_world_team || '—',
+        badge: p.position || '—',
+      }))
     }
-    setShowDropdown(true)
   }
 
-  function selectResult(r) {
-    setPlayerName(r.name)
-    setShowDropdown(false)
+  function handlePlayerSelect(opt) {
+    setPlayerName(opt?.label ?? '')
     setManualMode(false)
   }
 
@@ -337,33 +337,12 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
           {/* Player Search */}
           <div className="mb-3">
             <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">Player</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={playerName}
-                onChange={e => handleSearch(e.target.value)}
-                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                placeholder="Search player name..."
-                className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent transition-colors"
-              />
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border2 rounded-sm shadow-lg z-10 max-h-[200px] overflow-y-auto">
-                  {searchResults.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectResult(r)}
-                      className="w-full text-left px-3 py-2 hover:bg-surface2 cursor-pointer flex justify-between items-center border-b border-border last:border-b-0"
-                    >
-                      <div>
-                        <div className="text-[13px] text-txt font-medium">{r.name}</div>
-                        <div className="text-[11px] text-txt3">{r.team}</div>
-                      </div>
-                      <span className="font-mono text-[10px] text-txt3">{r.pos}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SearchableSelect
+              value={playerName}
+              onChange={handlePlayerSelect}
+              onSearch={searchPlayers}
+              placeholder="Search player name..."
+            />
             {manualMode && (
               <div className="mt-2 p-2.5 bg-surface3 border border-border2 rounded-sm">
                 <div className="font-mono text-[9px] text-accent mb-1.5 uppercase tracking-wider">Manual Entry</div>
@@ -487,7 +466,9 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
 }
 
 export default function FaBidTrackerPage() {
-  const sport = useActiveSport()
+  const { globalSport, lastIndividualSport } = useGlobalSport()
+  const sportFilter = globalSport === 'all' ? null : globalSport
+  const sport = sportFilter || lastIndividualSport
   const [activeTab, setActiveTab] = useState('active')
   const [outbidTarget, setOutbidTarget] = useState(null)
 
@@ -533,7 +514,7 @@ export default function FaBidTrackerPage() {
       </div>
 
       {activeTab === 'active' && (
-        <ActiveBidsTab sport={sport} onOutbid={handleOutbid} />
+        <ActiveBidsTab sport={sportFilter} onOutbid={handleOutbid} />
       )}
       {activeTab === 'submit' && (
         <SubmitBidTab

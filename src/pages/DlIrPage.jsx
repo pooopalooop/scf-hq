@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
 import { supabase } from '../lib/supabase'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 
 const DESTINATIONS = [
@@ -167,7 +167,7 @@ function ReservePlayerRow({ contract, onActivate, activating, isCommissioner }) 
 }
 
 export default function DlIrPage() {
-  const sport = useActiveSport()
+  const { globalSport: sport } = useGlobalSport()
   const [activeTab, setActiveTab] = useState('place')
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [selectedDest, setSelectedDest] = useState(null)
@@ -183,14 +183,12 @@ export default function DlIrPage() {
   const capState = capStates?.find(cs => cs.sport === sport)
 
   const activePlayers = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && c.status === 'active')
-      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
+    (allContracts || []).filter(c => c.sport === sport && c.status === 'active'),
     [allContracts, sport]
   )
 
   const reservePlayers = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && ['dl', 'ir', 'sspd'].includes(c.status))
-      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
+    (allContracts || []).filter(c => c.sport === sport && ['dl', 'ir', 'sspd'].includes(c.status)),
     [allContracts, sport]
   )
 

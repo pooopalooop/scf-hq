@@ -4,17 +4,13 @@ import { useAllTeamsCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
 import { supabase, isConfigured } from '../lib/supabase'
 import { DEMO_CONTRACTS } from '../lib/demoData'
-import { useGlobalSport } from '../lib/sportContext'
-import { SkeletonCard } from '../components/Skeleton'
 
-// ── Compact 3-column cap card (used in ALL mode) ────────────────────────────
 function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
   const config = SPORT_CONFIG[sport]
-  const sportStates = (capStates?.filter(cs => cs.sport === sport) || [])
-    .sort((a, b) => (a.teams?.name || '').localeCompare(b.teams?.name || ''))
+  const sportStates = capStates?.filter(cs => cs.sport === sport) || []
 
   return (
-    <div className="bg-surface border border-border rounded overflow-x-auto">
+    <div className="bg-surface border border-border rounded overflow-hidden">
       <div
         className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3.5 py-2.5 border-b border-border flex justify-between items-center"
         style={{ color: `var(--color-${sport})` }}
@@ -48,105 +44,6 @@ function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
   )
 }
 
-// ── Expanded single-sport row (used in NFL/NBA/MLB mode) ────────────────────
-function SportCapRowExpanded({ sport, capStates, allContracts, onTeamClick, selectedTeam }) {
-  const config = SPORT_CONFIG[sport]
-  const sportStates = (capStates?.filter(cs => cs.sport === sport) || [])
-    .sort((a, b) => (a.teams?.name || '').localeCompare(b.teams?.name || ''))
-
-  return (
-    <div className="bg-surface border border-border rounded overflow-x-auto">
-      <div
-        className="font-mono text-[11px] font-semibold tracking-wider uppercase px-4 py-3 border-b border-border flex justify-between items-center"
-        style={{ color: `var(--color-${sport})` }}
-      >
-        <span>{config.label} — All Teams</span>
-        <span className="text-txt3 font-normal text-[10px]">${config.cap} salary cap</span>
-      </div>
-
-      <div className="divide-y divide-border">
-        {sportStates.map(cs => {
-          const remaining = cs.total_cap - cs.spent
-          const pct = Math.min((cs.spent / cs.total_cap) * 100, 100)
-          const barColor = pct > 90 ? 'var(--color-red)' : pct > 75 ? 'var(--color-accent)' : `var(--color-${sport})`
-          const remColor = remaining <= 0 ? 'text-red' : remaining < 20 ? 'text-accent' : 'text-green'
-          const isSelected = selectedTeam === cs.team_id
-
-          // Aggregate contracts for this team+sport
-          const teamContracts = (allContracts || []).filter(c => c.team_id === cs.team_id && c.sport === sport)
-          const active = teamContracts.filter(c => c.status === 'active')
-          const dl = teamContracts.filter(c => c.status === 'dl')
-          const ir = teamContracts.filter(c => c.status === 'ir')
-          const sspd = teamContracts.filter(c => c.status === 'sspd')
-          const minors = teamContracts.filter(c => ['minors', 'drafted'].includes(c.status))
-          const sum = arr => arr.reduce((t, c) => t + (c.salary || 0), 0)
-
-          const activeSlots = config.activeRoster
-          const minorsSlots = (config.minorsSlots || 0) + (config.draftedSlots || 0)
-
-          return (
-            <button
-              key={cs.id}
-              onClick={() => onTeamClick(cs.team_id, cs.teams?.name)}
-              className={`w-full px-4 py-3.5 text-left transition-colors cursor-pointer ${isSelected ? 'bg-surface3' : 'hover:bg-surface2'}`}
-            >
-              <div className="flex items-center gap-4">
-                {/* Team name */}
-                <span className={`font-medium text-[14px] w-[110px] flex-shrink-0 ${isSelected ? 'text-txt' : 'text-txt2'}`}>
-                  {cs.teams?.name || '—'}
-                </span>
-
-                {/* Cap bar */}
-                <div className="flex-1 min-w-0">
-                  <div className="bg-surface3 rounded-sm h-2 overflow-hidden">
-                    <div className="h-full rounded-sm transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="font-mono text-[9px] text-txt3">${cs.spent} spent</span>
-                    <span className="font-mono text-[9px] text-txt3">${cs.total_cap} cap</span>
-                  </div>
-                </div>
-
-                {/* Cap remaining */}
-                <div className="text-right w-[60px] flex-shrink-0">
-                  <div className={`font-mono text-[14px] font-semibold ${remColor}`}>${remaining}</div>
-                  <div className="font-mono text-[9px] text-txt3">remaining</div>
-                </div>
-
-                {/* Roster slots */}
-                <div className="text-right w-[60px] flex-shrink-0">
-                  <div className={`font-mono text-[13px] font-medium ${active.length >= activeSlots ? 'text-red' : 'text-txt2'}`}>
-                    {active.length}/{activeSlots}
-                  </div>
-                  <div className="font-mono text-[9px] text-txt3">active</div>
-                </div>
-
-                {/* Salary breakdown */}
-                <div className="flex gap-3 flex-shrink-0">
-                  <SalaryPill label="Active" value={sum(active)} color="txt2" />
-                  {dl.length > 0 && <SalaryPill label={`DL ${dl.length}`} value={sum(dl)} color="accent" />}
-                  {ir.length > 0 && <SalaryPill label={`IR ${ir.length}`} value={sum(ir)} color="red" />}
-                  {sspd.length > 0 && <SalaryPill label={`SSPD ${sspd.length}`} value={sum(sspd)} color="blue" />}
-                  {minors.length > 0 && <SalaryPill label={`Min ${minors.length}/${minorsSlots}`} value={sum(minors)} color="green" />}
-                </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function SalaryPill({ label, value, color }) {
-  return (
-    <div className="text-right hidden lg:block">
-      <div className={`font-mono text-[11px] text-${color}`}>${value}</div>
-      <div className="font-mono text-[9px] text-txt3">{label}</div>
-    </div>
-  )
-}
-
 const STATUS_BADGES = {
   dl: { label: 'DL', cls: 'bg-[rgba(245,166,35,0.15)] text-accent border-[rgba(245,166,35,0.3)]' },
   ir: { label: 'IR', cls: 'bg-[rgba(239,68,68,0.15)] text-red border-[rgba(239,68,68,0.3)]' },
@@ -157,13 +54,12 @@ const STATUS_BADGES = {
 
 function SportRosterTable({ contracts, sport, capState }) {
   const config = SPORT_CONFIG[sport]
-  const byName = (a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')
-  const active = contracts.filter(c => c.status === 'active').sort(byName)
-  const dl = contracts.filter(c => c.status === 'dl').sort(byName)
-  const ir = contracts.filter(c => c.status === 'ir').sort(byName)
-  const sspd = contracts.filter(c => c.status === 'sspd').sort(byName)
-  const minors = contracts.filter(c => c.status === 'minors').sort(byName)
-  const drafted = contracts.filter(c => c.status === 'drafted').sort(byName)
+  const active = contracts.filter(c => c.status === 'active').sort((a, b) => b.salary - a.salary)
+  const dl = contracts.filter(c => c.status === 'dl')
+  const ir = contracts.filter(c => c.status === 'ir')
+  const sspd = contracts.filter(c => c.status === 'sspd')
+  const minors = contracts.filter(c => c.status === 'minors')
+  const drafted = contracts.filter(c => c.status === 'drafted')
 
   const renderRows = (players) => players.map(c => (
     <tr key={c.id} className="border-b border-border last:border-b-0 hover:bg-surface2">
@@ -193,7 +89,10 @@ function SportRosterTable({ contracts, sport, capState }) {
     )
   }
 
-  const sum = (arr) => arr.reduce((t, c) => t + (c.salary || 0), 0)
+  // Salary breakdowns by category
+  const sum = (arr, key = 'salary') => arr.reduce((t, c) => t + (c[key] || 0), 0)
+  const sumYear = (arr, key) => arr.reduce((t, c) => t + (c[key] || 0), 0)
+
   const activeTotal = sum(active)
   const dlTotal = sum(dl)
   const irTotal = sum(ir)
@@ -216,7 +115,7 @@ function SportRosterTable({ contracts, sport, capState }) {
   )
 
   return (
-    <div className="bg-surface border border-border rounded overflow-x-auto">
+    <div className="bg-surface border border-border rounded overflow-hidden">
       <div
         className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3 py-2 border-b border-border flex justify-between items-center"
         style={{ color: `var(--color-${sport})` }}
@@ -247,6 +146,7 @@ function SportRosterTable({ contracts, sport, capState }) {
         </tbody>
       </table>
 
+      {/* Salary Breakdown Summary */}
       <div className="border-t border-border bg-surface2 px-1 py-2">
         <div className="font-mono text-[8px] tracking-wider text-txt3 uppercase px-2 pb-1.5 mb-1 border-b border-border">
           Salary Breakdown
@@ -282,7 +182,7 @@ function SportRosterTable({ contracts, sport, capState }) {
   )
 }
 
-function TeamRosterView({ teamId, teamName, capStates, sport }) {
+function TeamRosterView({ teamId, teamName, capStates, sportFilter }) {
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['team_roster_all', teamId],
     queryFn: async () => {
@@ -302,24 +202,24 @@ function TeamRosterView({ teamId, teamName, capStates, sport }) {
     return <div className="text-txt3 text-center py-8 font-mono text-[11px]">Loading roster...</div>
   }
 
-  const sportsToShow = sport && sport !== 'all' ? [sport] : ['nfl', 'nba', 'mlb']
+  const sportsToShow = sportFilter ? [sportFilter] : ['nfl', 'nba', 'mlb']
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
         <h2 className="font-condensed text-[18px] font-bold text-txt">{teamName}</h2>
         <div className="flex gap-2">
-          {['nfl', 'nba', 'mlb'].map(s => {
-            const cs = capStates?.find(c => c.team_id === teamId && c.sport === s)
+          {['nfl', 'nba', 'mlb'].map(sport => {
+            const cs = capStates?.find(c => c.team_id === teamId && c.sport === sport)
             const remaining = cs ? cs.total_cap - cs.spent : 0
             return (
-              <span key={s} className="font-mono text-[11px] px-2 py-0.5 rounded-sm border"
+              <span key={sport} className="font-mono text-[11px] px-2 py-0.5 rounded-sm border"
                 style={{
-                  color: `var(--color-${s})`,
-                  borderColor: `color-mix(in srgb, var(--color-${s}) 30%, transparent)`,
-                  background: `color-mix(in srgb, var(--color-${s}) 6%, transparent)`,
+                  color: `var(--color-${sport})`,
+                  borderColor: `color-mix(in srgb, var(--color-${sport}) 30%, transparent)`,
+                  background: `color-mix(in srgb, var(--color-${sport}) 6%, transparent)`,
                 }}>
-                {SPORT_CONFIG[s].label} ${remaining}
+                {SPORT_CONFIG[sport].label} ${remaining}
               </span>
             )
           })}
@@ -327,12 +227,12 @@ function TeamRosterView({ teamId, teamName, capStates, sport }) {
       </div>
 
       <div className={`grid gap-3 ${sportsToShow.length === 1 ? 'grid-cols-1 max-w-2xl' : 'grid-cols-3'}`}>
-        {sportsToShow.map(s => (
+        {sportsToShow.map(sport => (
           <SportRosterTable
-            key={s}
-            contracts={(contracts || []).filter(c => c.sport === s)}
-            sport={s}
-            capState={capStates?.find(c => c.team_id === teamId && c.sport === s)}
+            key={sport}
+            contracts={(contracts || []).filter(c => c.sport === sport)}
+            sport={sport}
+            capState={capStates?.find(c => c.team_id === teamId && c.sport === sport)}
           />
         ))}
       </div>
@@ -341,29 +241,12 @@ function TeamRosterView({ teamId, teamName, capStates, sport }) {
 }
 
 export default function LeagueOverview() {
-  const { globalSport } = useGlobalSport()
-  const { data: capStates, isLoading: capLoading } = useAllTeamsCapState()
+  const { data: capStates, isLoading } = useAllTeamsCapState()
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [selectedTeamName, setSelectedTeamName] = useState(null)
+  const [sportFilter, setSportFilter] = useState(null)
 
-  // Fetch all contracts for expanded single-sport view
-  const { data: allContracts, isLoading: contractsLoading } = useQuery({
-    queryKey: ['all_contracts_overview'],
-    queryFn: async () => {
-      if (!isConfigured) return DEMO_CONTRACTS
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*, players(name, position)')
-        .order('salary', { ascending: false })
-      if (error) throw error
-      return data
-    },
-    enabled: globalSport !== 'all',
-  })
-
-  const isLoading = capLoading || (globalSport !== 'all' && contractsLoading)
-
-  // Build unique team list
+  // Build unique team list from cap states
   const teams = []
   const seen = new Set()
   if (capStates) {
@@ -386,8 +269,6 @@ export default function LeagueOverview() {
     }
   }
 
-  const isSingleSport = globalSport !== 'all'
-
   return (
     <div>
       <div className="flex items-start justify-between mb-6 pb-4 border-b border-border">
@@ -396,70 +277,60 @@ export default function LeagueOverview() {
             League Overview
           </h1>
           <span className="text-[12px] text-txt2 font-mono">
-            All 10 Teams &mdash; {isSingleSport ? `${globalSport.toUpperCase()} view` : 'click a team to view full roster'}
+            All 10 Teams &mdash; click a team to view full roster
           </span>
         </div>
-        {/* Team jump dropdown — always visible */}
-        <select
-          value={selectedTeam || ''}
-          onChange={e => {
-            const id = e.target.value
-            if (!id) { setSelectedTeam(null); setSelectedTeamName(null); return }
-            const t = teams.find(t => t.id === id)
-            setSelectedTeam(id)
-            setSelectedTeamName(t?.name)
-          }}
-          className="bg-surface2 border border-border2 text-txt font-mono text-[11px] px-3 py-1.5 rounded-sm cursor-pointer outline-none focus:border-accent"
-        >
-          <option value="">Jump to team</option>
-          {teams.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          {/* Team dropdown */}
+          <select
+            value={selectedTeam || ''}
+            onChange={e => {
+              const id = e.target.value
+              if (!id) { setSelectedTeam(null); setSelectedTeamName(null); return }
+              const t = teams.find(t => t.id === id)
+              setSelectedTeam(id)
+              setSelectedTeamName(t?.name)
+            }}
+            className="bg-surface2 border border-border2 text-txt font-mono text-[11px] px-3 py-1.5 rounded-sm cursor-pointer outline-none focus:border-accent"
+          >
+            <option value="">All Teams</option>
+            {teams.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+
+          {/* Sport filter dropdown (when team selected) */}
+          {selectedTeam && (
+            <select
+              value={sportFilter || ''}
+              onChange={e => setSportFilter(e.target.value || null)}
+              className="bg-surface2 border border-border2 text-txt font-mono text-[11px] px-3 py-1.5 rounded-sm cursor-pointer outline-none focus:border-accent"
+            >
+              <option value="">All Sports</option>
+              <option value="nfl">NFL</option>
+              <option value="nba">NBA</option>
+              <option value="mlb">MLB</option>
+            </select>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
-        isSingleSport ? (
-          <div className="space-y-2">
-            {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {['nfl', 'nba', 'mlb'].map(s => (
-              <div key={s} className="space-y-2">
-                <div className="h-8 bg-surface2 rounded animate-pulse" />
-                {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-            ))}
-          </div>
-        )
+        <div className="text-txt3 text-center py-12 font-mono text-[11px]">Loading...</div>
       ) : (
         <>
-          {isSingleSport ? (
-            // Single-sport expanded view
-            <div className="mb-6">
-              <SportCapRowExpanded
-                sport={globalSport}
+          {/* Cap bars */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {['nfl', 'nba', 'mlb'].map(sport => (
+              <SportCapCard
+                key={sport}
+                sport={sport}
                 capStates={capStates}
-                allContracts={allContracts}
                 onTeamClick={handleTeamClick}
                 selectedTeam={selectedTeam}
               />
-            </div>
-          ) : (
-            // ALL: 3-column compact view
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              {['nfl', 'nba', 'mlb'].map(sport => (
-                <SportCapCard
-                  key={sport}
-                  sport={sport}
-                  capStates={capStates}
-                  onTeamClick={handleTeamClick}
-                  selectedTeam={selectedTeam}
-                />
-              ))}
-            </div>
-          )}
+            ))}
+          </div>
 
           {/* Team roster detail */}
           {selectedTeam && (
@@ -467,7 +338,7 @@ export default function LeagueOverview() {
               teamId={selectedTeam}
               teamName={selectedTeamName}
               capStates={capStates}
-              sport={globalSport}
+              sportFilter={sportFilter}
             />
           )}
         </>

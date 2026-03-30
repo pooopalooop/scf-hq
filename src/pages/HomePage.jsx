@@ -5,7 +5,7 @@ import { supabase, isConfigured } from '../lib/supabase'
 import { SPORT_CONFIG } from '../lib/constants'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SkeletonCard, SkeletonTable } from '../components/Skeleton'
-import { useActiveSport } from '../lib/sportContext'
+import { useGlobalSport } from '../lib/sportContext'
 
 const DL_MIN_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -96,7 +96,8 @@ function fmtCountdown(ms) {
 
 export default function HomePage({ onNavigate }) {
   const { team } = useAuth()
-  const globalSport = useActiveSport()
+  const { globalSport } = useGlobalSport()
+  const sportFilter = globalSport === 'all' ? null : globalSport
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -180,7 +181,7 @@ export default function HomePage({ onNavigate }) {
 
     // DL players eligible to activate (5-day minimum passed)
     const dlEligible = allContracts.filter(c =>
-      c.sport === globalSport && c.status === 'dl' && msUntilEligible(c.placed_at) <= 0
+      (!sportFilter || c.sport === sportFilter) && c.status === 'dl' && msUntilEligible(c.placed_at) <= 0
     )
     for (const c of dlEligible) {
       items.push({
@@ -196,7 +197,7 @@ export default function HomePage({ onNavigate }) {
 
     // SSPD players where returned_at is set (or suspension has ended) but still sspd
     const sspdReturned = allContracts.filter(c =>
-      c.sport === globalSport && c.status === 'sspd' && c.returned_at
+      (!sportFilter || c.sport === sportFilter) && c.status === 'sspd' && c.returned_at
     )
     for (const c of sspdReturned) {
       items.push({
@@ -212,7 +213,7 @@ export default function HomePage({ onNavigate }) {
 
     // FA bids I'm winning that expire within 6 hours
     if (myBids && allActiveBids) {
-      for (const bid of myBids.filter(b => b.sport === globalSport)) {
+      for (const bid of myBids.filter(b => !sportFilter || b.sport === sportFilter)) {
         const msLeft = new Date(bid.expires_at).getTime() - now
         if (msLeft > 0 && msLeft <= 6 * 3600000) {
           items.push({
@@ -228,7 +229,7 @@ export default function HomePage({ onNavigate }) {
       }
 
       // FA bids where I was outbid (another team has higher bid on same player)
-      for (const myBid of myBids.filter(b => b.sport === globalSport)) {
+      for (const myBid of myBids.filter(b => !sportFilter || b.sport === sportFilter)) {
         const higherBids = allActiveBids.filter(b =>
           b.player_name === myBid.player_name &&
           b.sport === myBid.sport &&
@@ -250,7 +251,7 @@ export default function HomePage({ onNavigate }) {
     }
 
     return items
-  }, [allContracts, myBids, allActiveBids, now, onNavigate, team?.id, globalSport])
+  }, [allContracts, myBids, allActiveBids, now, onNavigate, team?.id, sportFilter])
 
   const isLoading = rosterLoading || capLoading
 
@@ -315,11 +316,11 @@ export default function HomePage({ onNavigate }) {
             </h2>
             {txLoading ? (
               <SkeletonTable rows={4} />
-            ) : !recentTx?.filter(tx => tx.sport === globalSport).length ? (
-              <div className="text-txt3 font-mono text-[11px] text-center py-6 bg-surface border border-border rounded">No recent {globalSport.toUpperCase()} transactions</div>
+            ) : !recentTx?.filter(tx => !sportFilter || tx.sport === sportFilter).length ? (
+              <div className="text-txt3 font-mono text-[11px] text-center py-6 bg-surface border border-border rounded">No recent transactions</div>
             ) : (
               <div className="bg-surface border border-border rounded overflow-hidden">
-                {recentTx.filter(tx => tx.sport === globalSport).map((tx, i) => (
+                {recentTx.filter(tx => !sportFilter || tx.sport === sportFilter).map((tx, i) => (
                   <div key={tx.id || i} className="flex items-center justify-between px-3 py-2.5 border-b border-border last:border-0 hover:bg-surface2">
                     <div className="flex items-center gap-2.5">
                       <SportBadge sport={tx.sport} />
@@ -358,11 +359,11 @@ export default function HomePage({ onNavigate }) {
             </div>
             {bidsLoading ? (
               <SkeletonTable rows={3} />
-            ) : !expiringBids?.filter(b => b.sport === globalSport).length ? (
-              <div className="text-txt3 font-mono text-[11px] text-center py-4 bg-surface border border-border rounded">No {globalSport.toUpperCase()} bids expiring in 24 hours</div>
+            ) : !expiringBids?.filter(b => !sportFilter || b.sport === sportFilter).length ? (
+              <div className="text-txt3 font-mono text-[11px] text-center py-4 bg-surface border border-border rounded">No bids expiring in 24 hours</div>
             ) : (
               <div className="bg-surface border border-border rounded overflow-hidden">
-                {expiringBids.filter(b => b.sport === globalSport).map(bid => {
+                {expiringBids.filter(b => !sportFilter || b.sport === sportFilter).map(bid => {
                   const ms = new Date(bid.expires_at).getTime() - now
                   const urgent = ms < 2 * 3600000
                   const warning = ms < 8 * 3600000
@@ -404,7 +405,7 @@ export default function HomePage({ onNavigate }) {
                 {['nfl', 'nba', 'mlb'].map(sport => {
                   const cs = capStates?.find(c => c.sport === sport)
                   return (
-                    <div key={sport} className={sport !== globalSport ? 'opacity-40' : ''}>
+                    <div key={sport} className={sportFilter && sport !== sportFilter ? 'opacity-40' : ''}>
                       <MiniCapBar sport={sport} capState={cs} />
                     </div>
                   )

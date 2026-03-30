@@ -19,6 +19,24 @@ export default function TransactionLog() {
     },
   })
 
+  const TYPE_LABELS = {
+    ACTIVATE_FROM_DL: 'Activated from DL',
+    MOVE_TO_DL: 'Moved to DL',
+    MOVE_TO_IR: 'Moved to IR',
+    ACTIVATE_FROM_IR: 'Activated from IR',
+    MOVE_TO_MINORS: 'Sent to Minors',
+    CALL_UP: 'Called Up',
+    FA_BID: 'FA Bid Submitted',
+    FA_WIN: 'FA Bid Won',
+    FA_OUTBID: 'Outbid on FA',
+    RE_SIGN: 'Re-signed',
+    TRADE: 'Trade',
+    RELEASE: 'Released',
+    MOVE_TO_SSPD: 'Moved to Suspended List',
+    RETURN_FROM_SSPD: 'Returned from Suspension',
+    COMMISSIONER_ADJUSTMENT: 'Commissioner Adjustment',
+  }
+
   const sportColor = {
     nfl: 'var(--color-nfl)',
     nba: 'var(--color-nba)',
@@ -60,8 +78,8 @@ export default function TransactionLog() {
                   <td className="py-2.5 px-3 font-mono text-[11px] text-txt3">
                     {new Date(tx.timestamp).toLocaleDateString()}
                   </td>
-                  <td className="py-2.5 px-3 font-mono text-[11px] text-txt2 uppercase">
-                    {tx.type}
+                  <td className="py-2.5 px-3 font-mono text-[11px] text-txt2">
+                    {TYPE_LABELS[tx.type] || tx.type}
                   </td>
                   <td className="py-2.5 px-3 text-txt2">{tx.teams?.name || '—'}</td>
                   <td className="py-2.5 px-3 text-txt font-medium">{tx.players?.name || '—'}</td>
