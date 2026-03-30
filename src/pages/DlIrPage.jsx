@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
 import { supabase } from '../lib/supabase'
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 
 const DESTINATIONS = [
@@ -167,7 +167,7 @@ function ReservePlayerRow({ contract, onActivate, activating, isCommissioner }) 
 }
 
 export default function DlIrPage() {
-  const { globalSport: sport } = useGlobalSport()
+  const sport = useActiveSport()
   const [activeTab, setActiveTab] = useState('place')
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [selectedDest, setSelectedDest] = useState(null)

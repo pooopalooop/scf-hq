@@ -1,7 +1,7 @@
 import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 
 const STATUS_BADGES = {
@@ -142,7 +142,7 @@ function RosterTable({ contracts, sport }) {
 }
 
 export default function Dashboard() {
-  const { globalSport: activeSport } = useGlobalSport()
+  const activeSport = useActiveSport()
   const { team } = useAuth()
   const { data: allContracts, isLoading } = useTeamRoster(team?.id)
   const { data: capStates } = useTeamCapState(team?.id)

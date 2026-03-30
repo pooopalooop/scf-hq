@@ -29,24 +29,34 @@ export default function Header() {
 
         {/* Global Sport Selector */}
         <div className="flex gap-1">
-          {['nfl', 'nba', 'mlb'].map(sport => {
-            const isActive = globalSport === sport
+          {[
+            { id: 'all', label: 'ALL' },
+            { id: 'nfl', label: 'NFL' },
+            { id: 'nba', label: 'NBA' },
+            { id: 'mlb', label: 'MLB' },
+          ].map(({ id, label }) => {
+            const isActive = globalSport === id
+            const isSport = id !== 'all'
             return (
               <button
-                key={sport}
-                onClick={() => setGlobalSport(sport)}
+                key={id}
+                onClick={() => setGlobalSport(id)}
                 className="font-mono text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-sm cursor-pointer border transition-all duration-75"
-                style={isActive ? {
-                  color: `var(--color-${sport})`,
-                  borderColor: `color-mix(in srgb, var(--color-${sport}) 50%, transparent)`,
-                  background: `color-mix(in srgb, var(--color-${sport}) 15%, transparent)`,
+                style={isActive ? (isSport ? {
+                  color: `var(--color-${id})`,
+                  borderColor: `color-mix(in srgb, var(--color-${id}) 50%, transparent)`,
+                  background: `color-mix(in srgb, var(--color-${id}) 15%, transparent)`,
                 } : {
+                  color: 'var(--color-txt)',
+                  borderColor: 'var(--color-border2)',
+                  background: 'var(--color-surface3)',
+                }) : {
                   color: 'var(--color-txt3)',
                   borderColor: 'transparent',
                   background: 'transparent',
                 }}
               >
-                {SPORT_CONFIG[sport].label}
+                {label}
               </button>
             )
           })}

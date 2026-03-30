@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 import { supabase, isConfigured } from '../lib/supabase'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
@@ -271,7 +271,7 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
 }
 
 export default function MyRoster() {
-  const { globalSport: activeSport } = useGlobalSport()
+  const activeSport = useActiveSport()
   const { team } = useAuth()
   const { data: allContracts, isLoading } = useTeamRoster(team?.id)
   const { data: capStates } = useTeamCapState(team?.id)

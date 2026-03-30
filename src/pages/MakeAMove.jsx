@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SPORT_CONFIG } from '../lib/constants'
 import { supabase } from '../lib/supabase'
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
 import Select from '../components/Select'
@@ -384,7 +384,7 @@ function ActivateTab({ sport, highlightId }) {
 // Main MakeAMove page
 // ============================================================
 export default function MakeAMove({ onNavigate }) {
-  const { globalSport: sport } = useGlobalSport()
+  const sport = useActiveSport()
   const [activeTab, setActiveTab] = useState('reserve')
   const [highlightId, setHighlightId] = useState(null)
 
