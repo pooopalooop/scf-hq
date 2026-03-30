@@ -198,7 +198,8 @@ export default function MinorsPage() {
 
   // Current minors/drafted roster
   const minorsRoster = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && (c.status === 'minors' || c.status === 'drafted')),
+    (allContracts || []).filter(c => c.sport === sport && (c.status === 'minors' || c.status === 'drafted'))
+      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
     [allContracts, sport]
   )
 

@@ -57,7 +57,8 @@ function ReserveTab({ sport, onSuccessSwitch }) {
   const capState = capStates?.find(cs => cs.sport === sport)
 
   const activePlayers = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && c.status === 'active'),
+    (allContracts || []).filter(c => c.sport === sport && c.status === 'active')
+      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
     [allContracts, sport]
   )
 
@@ -287,7 +288,8 @@ function ActivateTab({ sport, highlightId }) {
   const [activatingId, setActivatingId] = useState(null)
 
   const reservePlayers = useMemo(() =>
-    (allContracts || []).filter(c => c.sport === sport && ['dl', 'ir', 'sspd'].includes(c.status)),
+    (allContracts || []).filter(c => c.sport === sport && ['dl', 'ir', 'sspd'].includes(c.status))
+      .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')),
     [allContracts, sport]
   )
 

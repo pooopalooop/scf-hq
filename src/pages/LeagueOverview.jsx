@@ -156,12 +156,13 @@ const STATUS_BADGES = {
 
 function SportRosterTable({ contracts, sport, capState }) {
   const config = SPORT_CONFIG[sport]
-  const active = contracts.filter(c => c.status === 'active').sort((a, b) => b.salary - a.salary)
-  const dl = contracts.filter(c => c.status === 'dl')
-  const ir = contracts.filter(c => c.status === 'ir')
-  const sspd = contracts.filter(c => c.status === 'sspd')
-  const minors = contracts.filter(c => c.status === 'minors')
-  const drafted = contracts.filter(c => c.status === 'drafted')
+  const byName = (a, b) => (a.players?.name || '').localeCompare(b.players?.name || '')
+  const active = contracts.filter(c => c.status === 'active').sort(byName)
+  const dl = contracts.filter(c => c.status === 'dl').sort(byName)
+  const ir = contracts.filter(c => c.status === 'ir').sort(byName)
+  const sspd = contracts.filter(c => c.status === 'sspd').sort(byName)
+  const minors = contracts.filter(c => c.status === 'minors').sort(byName)
+  const drafted = contracts.filter(c => c.status === 'drafted').sort(byName)
 
   const renderRows = (players) => players.map(c => (
     <tr key={c.id} className="border-b border-border last:border-b-0 hover:bg-surface2">
