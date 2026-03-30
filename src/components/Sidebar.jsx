@@ -8,7 +8,7 @@ const NAV_SECTIONS = [
   {
     label: 'Core',
     items: [
-      { id: 'dashboard', label: 'My Team', icon: LayoutDashboard },
+      { id: 'my-roster', label: 'My Team', icon: LayoutDashboard },
       { id: 'league', label: 'League Overview', icon: Users },
       { id: 'transactions', label: 'Transaction Log', icon: ScrollText },
     ]
@@ -18,8 +18,8 @@ const NAV_SECTIONS = [
     items: [
       { id: 'dl-ir', label: 'DL / IR / Reserve', icon: ArrowRightLeft, badge: null },
       { id: 'fa-tracker', label: 'FA Bid Tracker', icon: Clock, badge: '3', badgeColor: 'red' },
-      { id: 'fa-calc', label: 'FA Calculator', icon: Calculator },
-      { id: 'resign', label: 'Re-sign', icon: RefreshCw },
+      { id: 'calculators', label: 'FA Calculator', icon: Calculator },
+      { id: 'calculators', label: 'Re-sign', icon: RefreshCw },
       { id: 'minors', label: 'Minors / Drafted', icon: UserPlus },
       { id: 'trades', label: 'Trades', icon: GitBranch },
     ]
