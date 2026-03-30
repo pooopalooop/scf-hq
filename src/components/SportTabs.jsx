@@ -1,10 +1,10 @@
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 import { SPORT_CONFIG } from '../lib/constants'
 
 // This component now just displays the current sport — selection happens in the Header
 export default function SportTabs({ activeSport: overrideSport, onSelect }) {
-  const { globalSport } = useGlobalSport()
-  const sport = overrideSport || globalSport
+  const activeSport = useActiveSport()
+  const sport = overrideSport || activeSport
   const config = SPORT_CONFIG[sport]
 
   // If a parent still passes onSelect, render the dropdown for that page's override
