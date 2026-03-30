@@ -7,6 +7,8 @@ import { SPORT_CONFIG, ELIGIBILITY_LIMITS } from '../lib/constants'
 import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
 import SearchableSelect from '../components/SearchableSelect'
+import Select from '../components/Select'
+import Btn from '../components/Btn'
 
 const MINORS_MIN_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -176,7 +178,7 @@ function MinorsRosterRow({ contract, onCallUp, callingUp, isCommissioner }) {
   )
 }
 
-export default function MinorsPage() {
+export default function MinorsPage({ onNavigate }) {
   const { globalSport: sport } = useGlobalSport()
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [rawResults, setRawResults] = useState([])
@@ -452,7 +454,10 @@ export default function MinorsPage() {
             Current {sport.toUpperCase()} Minors Roster
           </div>
           {minorsRoster.length === 0 ? (
-            <div className="text-txt3 text-center py-8 font-mono text-[11px]">Empty</div>
+            <div className="text-center py-8 px-4">
+              <div className="font-mono text-[11px] text-txt3 mb-1">No players on minors or drafted list</div>
+              <div className="font-mono text-[10px] text-txt3 opacity-60">Add a player using the form →</div>
+            </div>
           ) : (
             <table className="w-full border-collapse text-[13px]">
               <thead>
@@ -518,14 +523,14 @@ export default function MinorsPage() {
             {(selectedPlayer || manualMode) && (
               <div>
                 <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">Move Type</label>
-                <select
+                <Select
                   value={moveType}
-                  onChange={e => setMoveType(e.target.value)}
-                  className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent cursor-pointer"
-                >
-                  <option value="minors">Add to Minors List</option>
-                  {sport === 'mlb' && <option value="drafted">Add to Drafted List</option>}
-                </select>
+                  onChange={setMoveType}
+                  options={[
+                    { value: 'minors', label: 'Add to Minors List' },
+                    ...(sport === 'mlb' ? [{ value: 'drafted', label: 'Add to Drafted List' }] : []),
+                  ]}
+                />
               </div>
             )}
           </div>
@@ -569,13 +574,14 @@ export default function MinorsPage() {
 
           {/* Submit */}
           <div className="flex gap-2.5 justify-end">
-            <button
+            <Btn
+              variant="primary"
               onClick={() => submitMove.mutate()}
               disabled={!canSubmit || submitMove.isPending}
-              className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors disabled:bg-surface3 disabled:text-txt3 disabled:cursor-not-allowed"
+              loading={submitMove.isPending}
             >
-              {submitMove.isPending ? 'Submitting...' : 'Submit Move'}
-            </button>
+              Submit Move
+            </Btn>
           </div>
         </div>
       </div>
@@ -594,10 +600,19 @@ export default function MinorsPage() {
                 : `${submitSuccess.player} added to ${submitSuccess.type} list`
               }
             </div>
-            <button onClick={() => setSubmitSuccess(null)}
-              className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors">
-              Done
-            </button>
+            <div className="flex gap-2.5 justify-center flex-wrap">
+              {onNavigate && (
+                <>
+                  <Btn variant="primary" onClick={() => { setSubmitSuccess(null); onNavigate('my-roster') }}>
+                    View My Roster
+                  </Btn>
+                  <Btn variant="secondary" onClick={() => { setSubmitSuccess(null); onNavigate('transactions') }}>
+                    View Transactions
+                  </Btn>
+                </>
+              )}
+              <Btn variant="ghost" onClick={() => setSubmitSuccess(null)}>Done</Btn>
+            </div>
           </div>
         </div>
       )}

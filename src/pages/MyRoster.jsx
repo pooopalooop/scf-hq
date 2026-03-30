@@ -7,6 +7,7 @@ import { useGlobalSport } from '../lib/sportContext'
 import { supabase, isConfigured } from '../lib/supabase'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
+import Btn from '../components/Btn'
 
 const DL_MIN_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -106,19 +107,18 @@ function ReleaseConfirm({ contract, capState, sport, onConfirm, onCancel, isPend
         </button>
       </div>
       <div className="flex gap-2">
-        <button
+        <Btn
+          variant="destructive"
+          size="sm"
           onClick={() => option && onConfirm(option)}
           disabled={!option || isPending}
-          className="font-mono text-[11px] font-semibold tracking-wider uppercase py-1.5 px-4 rounded-sm border-none bg-red text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-opacity"
+          loading={isPending}
         >
-          {isPending ? 'Releasing...' : 'Confirm Release'}
-        </button>
-        <button
-          onClick={onCancel}
-          className="font-mono text-[11px] tracking-wider uppercase py-1.5 px-3 rounded-sm border border-border2 bg-transparent text-txt2 hover:bg-surface2 cursor-pointer transition-colors"
-        >
+          Confirm Release
+        </Btn>
+        <Btn variant="secondary" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Btn>
       </div>
     </td>
   )

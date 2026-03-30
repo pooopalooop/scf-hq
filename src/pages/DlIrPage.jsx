@@ -6,6 +6,7 @@ import { SPORT_CONFIG } from '../lib/constants'
 import { supabase } from '../lib/supabase'
 import { useGlobalSport } from '../lib/sportContext'
 import SportTabs from '../components/SportTabs'
+import Btn from '../components/Btn'
 
 const DESTINATIONS = [
   { id: 'dl', label: 'DL', sub: 'Disabled List', desc: 'Uncapped', uncapped: true },
@@ -166,7 +167,7 @@ function ReservePlayerRow({ contract, onActivate, activating, isCommissioner }) 
   )
 }
 
-export default function DlIrPage() {
+export default function DlIrPage({ onNavigate }) {
   const { globalSport: sport } = useGlobalSport()
   const [activeTab, setActiveTab] = useState('place')
   const [selectedPlayer, setSelectedPlayer] = useState(null)
@@ -412,19 +413,20 @@ export default function DlIrPage() {
 
             {/* Submit */}
             <div className="flex gap-2.5 justify-end pt-4 border-t border-border">
-              <button
+              <Btn
+                variant="secondary"
                 onClick={() => { setSelectedPlayer(null); setSelectedDest(null) }}
-                className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-5 rounded-sm cursor-pointer border border-border2 bg-transparent text-txt2 hover:bg-surface2 hover:text-txt transition-colors"
               >
                 Reset
-              </button>
-              <button
+              </Btn>
+              <Btn
+                variant="primary"
                 onClick={() => moveMutation.mutate()}
                 disabled={!validation.canSubmit || !selectedPlayer || !selectedDest || moveMutation.isPending}
-                className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors disabled:bg-surface3 disabled:text-txt3 disabled:cursor-not-allowed"
+                loading={moveMutation.isPending}
               >
-                {moveMutation.isPending ? 'Submitting...' : 'Submit Move'}
-              </button>
+                Submit Move
+              </Btn>
             </div>
           </div>
         </div>
@@ -500,12 +502,19 @@ export default function DlIrPage() {
                 SSPD return — notify commissioner to confirm
               </div>
             )}
-            <button
-              onClick={() => setSubmitSuccess(null)}
-              className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors"
-            >
-              Done
-            </button>
+            <div className="flex gap-2.5 justify-center flex-wrap">
+              {onNavigate && (
+                <>
+                  <Btn variant="primary" onClick={() => { setSubmitSuccess(null); onNavigate('my-roster') }}>
+                    Back to Roster
+                  </Btn>
+                  <Btn variant="secondary" onClick={() => { setSubmitSuccess(null); onNavigate('transactions') }}>
+                    View Transactions
+                  </Btn>
+                </>
+              )}
+              <Btn variant="ghost" onClick={() => setSubmitSuccess(null)}>Done</Btn>
+            </div>
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth'
 import { useTeamRoster } from '../hooks/useTeamData'
 import { MLB_ROOKIE_OPTIONS, calcResignSalary } from '../lib/constants'
 import SearchableSelect from '../components/SearchableSelect'
+import Select from '../components/Select'
 
 // ============================================================
 // FA Salary Calculator (Tab 1)
@@ -164,15 +165,15 @@ function ResignCalculator() {
           <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">
             Sport
           </label>
-          <select
+          <Select
             value={sport}
-            onChange={e => setSport(e.target.value)}
-            className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent cursor-pointer"
-          >
-            <option value="nfl">NFL</option>
-            <option value="nba">NBA</option>
-            <option value="mlb">MLB</option>
-          </select>
+            onChange={setSport}
+            options={[
+              { value: 'nfl', label: 'NFL' },
+              { value: 'nba', label: 'NBA' },
+              { value: 'mlb', label: 'MLB' },
+            ]}
+          />
         </div>
       </div>
 

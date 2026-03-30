@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase, isConfigured } from '../lib/supabase'
 import { DEMO_CONTRACTS, DEMO_CAP_STATES, DEMO_ALL_CAP_STATES } from '../lib/demoData'
@@ -25,6 +26,7 @@ export function useTeamContracts(teamId, sport) {
       return data
     },
     enabled: !!teamId,
+    refetchInterval: 30_000,
   })
 }
 
@@ -43,6 +45,7 @@ export function useTeamCapState(teamId) {
       return data
     },
     enabled: !!teamId,
+    refetchInterval: 30_000,
   })
 }
 
@@ -60,6 +63,7 @@ export function useAllTeamsCapState() {
       if (error) throw error
       return data
     },
+    refetchInterval: 30_000,
   })
 }
 
@@ -78,5 +82,35 @@ export function useTeamRoster(teamId) {
       return data
     },
     enabled: !!teamId,
+    refetchInterval: 30_000,
   })
+}
+
+export function useRealtimeRoster(teamId, queryClient) {
+  useEffect(() => {
+    if (!isConfigured || !teamId) return
+
+    const channel = supabase
+      .channel(`roster-realtime-${teamId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contracts', filter: `team_id=eq.${teamId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['contracts', teamId] })
+          queryClient.invalidateQueries({ queryKey: ['roster', teamId] })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cap_state', filter: `team_id=eq.${teamId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['cap_state', teamId] })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [teamId, queryClient])
 }

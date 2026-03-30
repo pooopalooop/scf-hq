@@ -8,6 +8,7 @@ import { useGlobalSport } from '../lib/sportContext'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
 import Select from '../components/Select'
+import Btn from '../components/Btn'
 import SearchableSelect from '../components/SearchableSelect'
 import MinorsPage from './MinorsPage'
 import PlaceholderPage from './PlaceholderPage'
@@ -191,19 +192,20 @@ function ReserveTab({ sport, onSuccessSwitch }) {
 
         {/* Submit */}
         <div className="flex gap-2.5 pt-2">
-          <button
+          <Btn
+            variant="secondary"
             onClick={() => { setSelectedPlayerId(''); setSelectedDest(''); setNote('') }}
-            className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-5 rounded-sm cursor-pointer border border-border2 bg-transparent text-txt2 hover:bg-surface2 hover:text-txt transition-colors"
           >
             Reset
-          </button>
-          <button
+          </Btn>
+          <Btn
+            variant="primary"
             onClick={() => moveMutation.mutate()}
             disabled={!canSubmit || moveMutation.isPending}
-            className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors disabled:bg-surface3 disabled:text-txt3 disabled:cursor-not-allowed"
+            loading={moveMutation.isPending}
           >
-            {moveMutation.isPending ? 'Submitting...' : 'Submit Move'}
-          </button>
+            Submit Move
+          </Btn>
         </div>
 
         {activePlayers.length === 0 && (
@@ -260,23 +262,15 @@ function ReservePlayerRow({ contract, onActivate, activating, isCommissioner }) 
             </span>
             <span className="font-mono text-[9px] text-txt3">5-day DL minimum (Sec. 11)</span>
             {isCommissioner && (
-              <button
-                onClick={() => onActivate(contract)}
-                disabled={activating}
-                className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2 rounded-sm cursor-pointer border border-accent bg-transparent text-accent hover:bg-[rgba(245,166,35,0.1)] transition-colors disabled:opacity-50"
-              >
-                {activating ? '...' : 'Override'}
-              </button>
+              <Btn variant="secondary" size="sm" onClick={() => onActivate(contract)} disabled={activating} loading={activating}>
+                Override
+              </Btn>
             )}
           </div>
         ) : (
-          <button
-            onClick={() => onActivate(contract)}
-            disabled={activating}
-            className="font-mono text-[11px] font-semibold tracking-wider uppercase py-1.5 px-3 rounded-sm border-none bg-green text-black hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {activating ? '...' : btnLabel}
-          </button>
+          <Btn variant="primary" size="sm" onClick={() => onActivate(contract)} disabled={activating} loading={activating}>
+            {btnLabel}
+          </Btn>
         )}
       </td>
     </tr>
@@ -451,7 +445,7 @@ export default function MakeAMove({ onNavigate }) {
         <ActivateTab sport={sport} highlightId={highlightId} />
       )}
       {activeTab === 'minors' && (
-        <MinorsPage />
+        <MinorsPage onNavigate={onNavigate} />
       )}
       {activeTab === 'resign' && (
         <PlaceholderPage title="Re-sign Calculator" description="Offseason contract extensions" />

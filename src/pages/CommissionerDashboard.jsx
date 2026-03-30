@@ -4,6 +4,8 @@ import { useAuth } from '../lib/auth'
 import { supabase, isConfigured } from '../lib/supabase'
 import { SPORTS, SPORT_CONFIG } from '../lib/constants'
 import { toast } from '../lib/toast'
+import Select from '../components/Select'
+import Btn from '../components/Btn'
 
 const TYPE_LABELS = {
   ACTIVATE_FROM_DL: 'Activated from DL',
@@ -352,30 +354,22 @@ function ManualCapAdjustment() {
       <div className="space-y-4">
         <div>
           <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">Team</label>
-          <select
+          <Select
             value={teamId}
-            onChange={e => setTeamId(e.target.value)}
-            className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent cursor-pointer"
-          >
-            <option value="">— Select team —</option>
-            {allTeams?.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+            onChange={setTeamId}
+            options={(allTeams || []).map(t => ({ value: t.id, label: t.name }))}
+            placeholder="— Select team —"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">Sport</label>
-            <select
+            <Select
               value={sport}
-              onChange={e => setSport(e.target.value)}
-              className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent cursor-pointer"
-            >
-              {SPORTS.map(s => (
-                <option key={s} value={s}>{s.toUpperCase()}</option>
-              ))}
-            </select>
+              onChange={setSport}
+              options={SPORTS.map(s => ({ value: s, label: s.toUpperCase() }))}
+            />
           </div>
           <div>
             <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">
@@ -422,12 +416,9 @@ function ManualCapAdjustment() {
         </div>
 
         {canSubmit && !confirmed && (
-          <button
-            onClick={() => setConfirmed(true)}
-            className="font-mono text-[11px] font-semibold tracking-wider uppercase py-2 px-5 rounded-sm cursor-pointer border border-accent bg-[rgba(245,166,35,0.1)] text-accent hover:bg-[rgba(245,166,35,0.2)] transition-colors"
-          >
+          <Btn variant="secondary" onClick={() => setConfirmed(true)}>
             Review &amp; Confirm
-          </button>
+          </Btn>
         )}
 
         {confirmed && (
@@ -436,19 +427,17 @@ function ManualCapAdjustment() {
               Confirm cap adjustment of {adjustAmount > 0 ? '+' : ''}${adjustAmount} for {allTeams?.find(t => t.id === teamId)?.name} ({sport.toUpperCase()})
             </div>
             <div className="flex gap-2">
-              <button
+              <Btn
+                variant="primary"
                 onClick={() => adjustMutation.mutate()}
                 disabled={adjustMutation.isPending}
-                className="font-mono text-[11px] font-semibold tracking-wider uppercase py-1.5 px-4 rounded-sm border-none bg-accent text-bg hover:opacity-90 disabled:opacity-50 cursor-pointer transition-opacity"
+                loading={adjustMutation.isPending}
               >
-                {adjustMutation.isPending ? 'Adjusting...' : 'Apply Adjustment'}
-              </button>
-              <button
-                onClick={() => setConfirmed(false)}
-                className="font-mono text-[11px] tracking-wider uppercase py-1.5 px-3 rounded-sm border border-border2 bg-transparent text-txt2 hover:bg-surface2 cursor-pointer"
-              >
+                Apply Adjustment
+              </Btn>
+              <Btn variant="secondary" onClick={() => setConfirmed(false)}>
                 Cancel
-              </button>
+              </Btn>
             </div>
           </div>
         )}
@@ -516,28 +505,23 @@ function NominationReset() {
             {confirming === sport ? (
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[11px] text-accent">Confirm reset?</span>
-                <button
+                <Btn
+                  variant="primary"
+                  size="sm"
                   onClick={() => resetMutation.mutate(sport)}
                   disabled={resetMutation.isPending}
-                  className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border-none bg-accent text-bg hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                  loading={resetMutation.isPending}
                 >
-                  {resetMutation.isPending ? '...' : 'Yes'}
-                </button>
-                <button
-                  onClick={() => setConfirming(null)}
-                  className="font-mono text-[10px] tracking-wider uppercase py-1 px-2.5 rounded-sm border border-border2 bg-transparent text-txt2 hover:bg-surface cursor-pointer"
-                >
+                  Yes
+                </Btn>
+                <Btn variant="secondary" size="sm" onClick={() => setConfirming(null)}>
                   No
-                </button>
+                </Btn>
               </div>
             ) : (
-              <button
-                onClick={() => setConfirming(sport)}
-                style={{ padding: '6px 14px' }}
-                className="font-mono text-[10px] font-semibold tracking-wider uppercase rounded-sm cursor-pointer border border-border2 bg-surface3 text-txt2 hover:text-txt hover:border-accent transition-colors"
-              >
+              <Btn variant="secondary" size="sm" onClick={() => setConfirming(sport)}>
                 Reset {sport.toUpperCase()} Nominations
-              </button>
+              </Btn>
             )}
           </div>
         ))}

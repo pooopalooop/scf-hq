@@ -8,6 +8,8 @@ import { SPORT_CONFIG, calcFaMinimum } from '../lib/constants'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
 import SearchableSelect from '../components/SearchableSelect'
+import Select from '../components/Select'
+import Btn from '../components/Btn'
 
 function formatCountdown(msLeft) {
   if (msLeft <= 0) return { text: 'EXPIRED', color: 'text-red' }
@@ -43,12 +45,7 @@ function BidRow({ bid, now, onOutbid }) {
         </div>
       </div>
       {msLeft > 0 && onOutbid && (
-        <button
-          onClick={() => onOutbid(bid)}
-          className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1.5 px-3 rounded-sm cursor-pointer border border-accent bg-transparent text-accent hover:bg-[rgba(245,166,35,0.1)] transition-colors"
-        >
-          Outbid
-        </button>
+        <Btn variant="secondary" size="sm" onClick={() => onOutbid(bid)}>Outbid</Btn>
       )}
     </div>
   )
@@ -56,11 +53,27 @@ function BidRow({ bid, now, onOutbid }) {
 
 function ActiveBidsTab({ sport, onOutbid }) {
   const [now, setNow] = useState(Date.now())
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!isConfigured) return
+    const channel = supabase
+      .channel('fa-bids-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'fa_bids' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['fa_bids'] })
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [queryClient])
 
   const { data: bids, isLoading } = useQuery({
     queryKey: ['fa_bids', 'active', sport],
@@ -330,7 +343,7 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
           <div className="font-mono text-[10px] tracking-wider text-txt3 uppercase mb-4 pb-2.5 border-b border-border flex items-center justify-between">
             <span>{prefillBid ? 'Your Bid' : 'Submit New Bid'}</span>
             {onCancel && (
-              <button onClick={onCancel} className="text-txt3 hover:text-txt2 font-mono text-[14px] leading-none cursor-pointer transition-colors" title="Cancel">✕</button>
+              <Btn variant="ghost" size="sm" onClick={onCancel}>✕</Btn>
             )}
           </div>
 
@@ -371,15 +384,15 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
             </div>
             <div>
               <label className="font-mono text-[10px] tracking-wider text-txt2 uppercase block mb-1.5">Years</label>
-              <select
+              <Select
                 value={years}
-                onChange={e => setYears(parseInt(e.target.value))}
-                className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent cursor-pointer"
-              >
-                <option value={1}>1 Year</option>
-                <option value={2}>2 Years</option>
-                <option value={3}>3 Years</option>
-              </select>
+                onChange={v => setYears(parseInt(v))}
+                options={[
+                  { value: 1, label: '1 Year' },
+                  { value: 2, label: '2 Years' },
+                  { value: 3, label: '3 Years' },
+                ]}
+              />
             </div>
           </div>
 
@@ -433,13 +446,14 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
           </div>
 
           <div className="flex gap-2.5 justify-end">
-            <button
+            <Btn
+              variant="primary"
               onClick={() => submitBid.mutate()}
               disabled={!canSubmit || submitBid.isPending}
-              className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors disabled:bg-surface3 disabled:text-txt3 disabled:cursor-not-allowed"
+              loading={submitBid.isPending}
             >
-              {submitBid.isPending ? 'Submitting...' : 'Submit Bid'}
-            </button>
+              Submit Bid
+            </Btn>
           </div>
         </div>
       </div>
@@ -454,10 +468,7 @@ function SubmitBidTab({ sport, prefillBid, onCancel }) {
               {submitSuccess.player} — ${submitSuccess.salary}/{submitSuccess.years}yr
             </div>
             <div className="text-[11px] text-txt3 font-mono mb-5">24-hour bid window is now open</div>
-            <button onClick={() => setSubmitSuccess(null)}
-              className="font-mono text-[12px] font-semibold tracking-wider uppercase py-2.5 px-6 rounded-sm cursor-pointer border-none bg-accent text-black hover:bg-accent2 transition-colors">
-              Done
-            </button>
+            <Btn variant="ghost" onClick={() => setSubmitSuccess(null)}>Done</Btn>
           </div>
         </div>
       )}
