@@ -5,6 +5,7 @@ import { useTeamCapState, useTeamRoster } from '../hooks/useTeamData'
 import { supabase, isConfigured } from '../lib/supabase'
 import { useGlobalSport } from '../lib/sportContext'
 import { SPORT_CONFIG, calcFaMinimum } from '../lib/constants'
+import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
 
 function formatCountdown(msLeft) {
@@ -55,7 +56,6 @@ function BidRow({ bid, now, onOutbid }) {
 function ActiveBidsTab({ sport, onOutbid }) {
   const [now, setNow] = useState(Date.now())
 
-  // Tick every second
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
@@ -76,18 +76,6 @@ function ActiveBidsTab({ sport, onOutbid }) {
     },
     refetchInterval: 30000,
   })
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!isConfigured) return
-    const channel = supabase
-      .channel('fa_bids_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fa_bids' }, () => {
-        // Refetch on any change
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [])
 
   if (isLoading) {
     return <div className="text-txt3 text-center py-8 font-mono text-[11px]">Loading bids...</div>
@@ -117,7 +105,7 @@ function SubmitBidTab({ sport, prefillBid }) {
   const queryClient = useQueryClient()
 
   const [playerName, setPlayerName] = useState(prefillBid?.player_name || '')
-  const [salary, setSalary] = useState(prefillBid ? '' : '')
+  const [salary, setSalary] = useState('')
   const [years, setYears] = useState(1)
   const [correspondingMove, setCorrespondingMove] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -126,10 +114,41 @@ function SubmitBidTab({ sport, prefillBid }) {
   const [manualPos, setManualPos] = useState('')
   const [manualTeam, setManualTeam] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(null)
+  const [nominationError, setNominationError] = useState('')
 
   const capState = capStates?.find(cs => cs.sport === sport)
   const sportContracts = allContracts?.filter(c => c.sport === sport && c.status === 'active') || []
   const config = SPORT_CONFIG[sport]
+
+  // Fetch today's nomination count (bids created today ET)
+  const { data: todayNomCount = 0 } = useQuery({
+    queryKey: ['fa_bids_today', team?.id, sport],
+    queryFn: async () => {
+      if (!isConfigured || !team?.id) return 0
+      const todayET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      todayET.setHours(0, 0, 0, 0)
+      const { count } = await supabase
+        .from('fa_bids')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', team.id)
+        .gte('created_at', todayET.toISOString())
+      return count || 0
+    },
+    enabled: !!team?.id,
+    refetchInterval: 60_000,
+  })
+
+  // Check if this is a new nomination (no prior active bids from any team on this player)
+  async function checkIsNewNomination(pName) {
+    if (!isConfigured) return false
+    const { count } = await supabase
+      .from('fa_bids')
+      .select('id', { count: 'exact', head: true })
+      .eq('player_name', pName)
+      .eq('sport', sport)
+      .eq('status', 'active')
+    return (count || 0) === 0
+  }
 
   // Calculate minimum bids if outbidding
   const minimums = useMemo(() => {
@@ -158,6 +177,7 @@ function SubmitBidTab({ sport, prefillBid }) {
   // Player search
   async function handleSearch(query) {
     setPlayerName(query)
+    setNominationError('')
     if (query.length < 2) { setShowDropdown(false); return }
 
     if (sport === 'mlb') {
@@ -177,7 +197,6 @@ function SubmitBidTab({ sport, prefillBid }) {
         setManualMode(true)
       }
     } else {
-      // Search existing players in Supabase
       if (!isConfigured) { setSearchResults([]); setShowDropdown(true); return }
       const { data } = await supabase
         .from('players')
@@ -198,24 +217,34 @@ function SubmitBidTab({ sport, prefillBid }) {
 
   const submitBid = useMutation({
     mutationFn: async () => {
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      setNominationError('')
 
+      // Check nomination limit for new players
+      if (!prefillBid) {
+        const isNew = await checkIsNewNomination(playerName.trim())
+        if (isNew) {
+          if (todayNomCount >= 2) {
+            throw new Error('Daily nomination limit reached (2/2). Resets at midnight ET.')
+          }
+        }
+      }
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       const { error } = await supabase
         .from('fa_bids')
         .insert({
           player_name: playerName,
           sport,
           bidding_team_id: team.id,
+          team_id: team.id,
           salary: salaryNum,
           years: parseInt(years),
           expires_at: expiresAt,
           status: 'active',
           corresponding_move: correspondingMove || null,
         })
-
       if (error) throw error
 
-      // Log transaction
       await supabase.from('transactions').insert({
         type: 'fa_bid',
         team_id: team.id,
@@ -224,18 +253,50 @@ function SubmitBidTab({ sport, prefillBid }) {
       })
     },
     onSuccess: () => {
-      setSubmitSuccess({ player: playerName, salary: salaryNum, years })
+      const player = playerName
+      const sal = salaryNum
+      const yrs = years
+      setSubmitSuccess({ player, salary: sal, years: yrs })
       setPlayerName('')
       setSalary('')
       setYears(1)
       setCorrespondingMove('')
       queryClient.invalidateQueries({ queryKey: ['fa_bids'] })
+      queryClient.invalidateQueries({ queryKey: ['fa_bids_today'] })
+      queryClient.invalidateQueries({ queryKey: ['fa_bids_count'] })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      toast(`FA bid submitted: ${player} $${sal}/${yrs}yr`, 'success')
+    },
+    onError: (err) => {
+      if (err?.message?.includes('nomination limit')) {
+        setNominationError(err.message)
+      } else {
+        toast('Bid submission failed — ' + (err?.message || 'try again'), 'error')
+      }
     },
   })
 
   return (
     <div>
+      {/* Nomination counter */}
+      {!prefillBid && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="font-mono text-[11px] text-txt2">Nominations today:</span>
+          <span className={`font-mono text-[12px] font-semibold ${todayNomCount >= 2 ? 'text-red' : todayNomCount >= 1 ? 'text-accent' : 'text-green'}`}>
+            {todayNomCount}/2
+          </span>
+          {todayNomCount >= 2 && (
+            <span className="font-mono text-[10px] text-red">— Daily limit reached. Resets at midnight ET.</span>
+          )}
+        </div>
+      )}
+
+      {nominationError && (
+        <div className="mb-4 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.3)] rounded-sm px-3 py-2.5">
+          <span className="font-mono text-[12px] text-red">{nominationError}</span>
+        </div>
+      )}
+
       {/* Current bid info if outbidding */}
       {prefillBid && (
         <div className="bg-surface2 border border-border2 rounded-sm p-3.5 mb-4">

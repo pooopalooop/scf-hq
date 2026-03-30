@@ -57,3 +57,35 @@ select, input[type="text"], input[type="number"], input[type="email"], input[typ
 
 select:focus, input:focus { border-color: var(--color-accent); }
 input::placeholder { color: var(--color-txt3); }
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  /* Bottom nav spacing */
+  main {
+    padding-bottom: 6rem !important; /* space for FABidBar + bottom nav */
+  }
+
+  /* Player cards in roster */
+  .roster-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Touch targets */
+  button {
+    min-height: 44px;
+  }
+
+  /* Hide desktop sidebar */
+  nav.sidebar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  /* Hide mobile bottom nav */
+  .mobile-bottom-nav {
+    display: none;
+  }
+}
