@@ -9,7 +9,8 @@ import { useGlobalSport } from '../lib/sportContext'
 // ── Compact 3-column cap card (used in ALL mode) ────────────────────────────
 function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
   const config = SPORT_CONFIG[sport]
-  const sportStates = capStates?.filter(cs => cs.sport === sport) || []
+  const sportStates = (capStates?.filter(cs => cs.sport === sport) || [])
+    .sort((a, b) => (a.teams?.name || '').localeCompare(b.teams?.name || ''))
 
   return (
     <div className="bg-surface border border-border rounded overflow-hidden">
