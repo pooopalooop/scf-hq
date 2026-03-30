@@ -5,131 +5,68 @@ import { SPORT_CONFIG } from '../lib/constants'
 import { supabase, isConfigured } from '../lib/supabase'
 import { DEMO_CONTRACTS } from '../lib/demoData'
 
-function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
-  const config = SPORT_CONFIG[sport]
-  const sportStates = capStates?.filter(cs => cs.sport === sport) || []
-
-  return (
-    <div className="bg-surface border border-border rounded overflow-hidden">
-      <div
-        className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3.5 py-2.5 border-b border-border flex justify-between items-center"
-        style={{ color: `var(--color-${sport})` }}
-      >
-        <span>{config.label}</span>
-        <span className="text-txt3 font-normal text-[10px]">${config.cap} CAP</span>
-      </div>
-      {sportStates.map(cs => {
-        const remaining = cs.total_cap - cs.spent
-        const pct = (cs.spent / cs.total_cap) * 100
-        const barColor = pct > 90 ? 'var(--color-red)' : pct > 75 ? 'var(--color-accent)' : `var(--color-${sport})`
-        const textColor = remaining < 10 ? 'var(--color-red)' : remaining < 30 ? 'var(--color-accent)' : 'var(--color-txt2)'
-        const isSelected = selectedTeam === cs.team_id
-
-        return (
-          <button
-            key={cs.id}
-            onClick={() => onTeamClick(cs.team_id, cs.teams?.name)}
-            className={`w-full px-3.5 py-2 border-b border-border last:border-b-0 grid items-center gap-2.5 text-[12px] cursor-pointer transition-colors text-left ${isSelected ? 'bg-surface3' : 'hover:bg-surface2'}`}
-            style={{ gridTemplateColumns: '80px 1fr 45px' }}
-          >
-            <span className={`text-[12px] ${isSelected ? 'text-txt font-medium' : 'text-txt2'}`}>{cs.teams?.name || '—'}</span>
-            <div className="bg-surface3 rounded-[1px] h-[5px] overflow-hidden">
-              <div className="h-full rounded-[1px] transition-all duration-300" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }} />
-            </div>
-            <span className="font-mono text-[11px] text-right" style={{ color: textColor }}>${remaining}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+const SPORTS = ['nfl', 'nba', 'mlb']
 
 const STATUS_BADGES = {
-  dl: { label: 'DL', cls: 'bg-[rgba(245,166,35,0.15)] text-accent border-[rgba(245,166,35,0.3)]' },
-  ir: { label: 'IR', cls: 'bg-[rgba(239,68,68,0.15)] text-red border-[rgba(239,68,68,0.3)]' },
-  sspd: { label: 'SSPD', cls: 'bg-[rgba(59,130,246,0.15)] text-blue border-[rgba(59,130,246,0.3)]' },
-  minors: { label: 'MINORS', cls: 'bg-[rgba(34,197,94,0.15)] text-green border-[rgba(34,197,94,0.3)]' },
-  drafted: { label: 'DRAFTED', cls: 'bg-[rgba(59,130,246,0.15)] text-blue border-[rgba(59,130,246,0.3)]' },
+  dl:      { label: 'DL',      cls: 'bg-[rgba(245,166,35,0.15)] text-accent border-[rgba(245,166,35,0.3)]' },
+  ir:      { label: 'IR',      cls: 'bg-[rgba(239,68,68,0.15)] text-red border-[rgba(239,68,68,0.3)]' },
+  sspd:    { label: 'SSPD',    cls: 'bg-[rgba(59,130,246,0.15)] text-blue border-[rgba(59,130,246,0.3)]' },
+  minors:  { label: 'MIN',     cls: 'bg-[rgba(34,197,94,0.15)] text-green border-[rgba(34,197,94,0.3)]' },
+  drafted: { label: 'DFT',     cls: 'bg-[rgba(59,130,246,0.15)] text-blue border-[rgba(59,130,246,0.3)]' },
 }
 
-function SportRosterTable({ contracts, sport, capState }) {
+// ─── Team detail: full per-sport roster + salary breakdown ───────────────────
+function SportDetailTable({ contracts, sport, capState }) {
   const config = SPORT_CONFIG[sport]
-  const active = contracts.filter(c => c.status === 'active').sort((a, b) => b.salary - a.salary)
-  const dl = contracts.filter(c => c.status === 'dl')
-  const ir = contracts.filter(c => c.status === 'ir')
-  const sspd = contracts.filter(c => c.status === 'sspd')
-  const minors = contracts.filter(c => c.status === 'minors')
-  const drafted = contracts.filter(c => c.status === 'drafted')
+  const active  = contracts.filter(c => c.status === 'active').sort((a, b) => b.salary - a.salary)
+  const reserve = contracts.filter(c => ['dl','ir','sspd'].includes(c.status))
+  const minor   = contracts.filter(c => ['minors','drafted'].includes(c.status))
 
-  const renderRows = (players) => players.map(c => (
+  const sum = arr => arr.reduce((t, c) => t + (c.salary || 0), 0)
+  const activeTotal = sum(active)
+  const reserveTotal = sum(reserve)
+  const total = sum(contracts.filter(c => !['minors','drafted'].includes(c.status)))
+  const remaining = capState ? capState.total_cap - capState.spent : (config.cap - total)
+
+  const renderRow = c => (
     <tr key={c.id} className="border-b border-border last:border-b-0 hover:bg-surface2">
-      <td className="py-1 px-2 text-txt font-medium text-[11px] truncate max-w-[120px]">{c.players?.name}</td>
-      <td className="py-1 px-2 font-mono text-[9px] text-txt3">{c.players?.position}</td>
-      <td className="py-1 px-2 font-mono text-[10px] text-accent text-right">${c.salary}</td>
+      <td className="py-1 px-2.5 text-[12px] text-txt font-medium truncate max-w-[130px]">{c.players?.name}</td>
+      <td className="py-1 px-2 font-mono text-[10px] text-txt3">{c.players?.position}</td>
+      <td className="py-1 px-2 text-right">
+        {c.status !== 'active' && STATUS_BADGES[c.status] && (
+          <span className={`font-mono text-[8px] font-semibold tracking-wider uppercase px-1 py-px rounded-sm border ${STATUS_BADGES[c.status].cls}`}>
+            {STATUS_BADGES[c.status].label}
+          </span>
+        )}
+      </td>
+      <td className="py-1 px-2 font-mono text-[11px] text-accent text-right">${c.salary}</td>
       <td className="py-1 px-2 font-mono text-[10px] text-txt3 text-right">{c.year2 ? `$${c.year2}` : '—'}</td>
       <td className="py-1 px-2 font-mono text-[10px] text-txt3 text-right">{c.year3 ? `$${c.year3}` : '—'}</td>
       <td className="py-1 px-2 font-mono text-[10px] text-txt3 text-right">{c.year4 ? `$${c.year4}` : '—'}</td>
     </tr>
-  ))
-
-  const renderSection = (label, players, status) => {
-    if (players.length === 0) return null
-    const badge = STATUS_BADGES[status]
-    return (
-      <>
-        <tr>
-          <td colSpan={6} className="pt-2 pb-1 px-2">
-            <span className={`font-mono text-[8px] font-semibold tracking-wider uppercase px-1 py-px rounded-sm border ${badge.cls}`}>
-              {badge.label}
-            </span>
-          </td>
-        </tr>
-        {renderRows(players)}
-      </>
-    )
-  }
-
-  // Salary breakdowns by category
-  const sum = (arr, key = 'salary') => arr.reduce((t, c) => t + (c[key] || 0), 0)
-  const sumYear = (arr, key) => arr.reduce((t, c) => t + (c[key] || 0), 0)
-
-  const activeTotal = sum(active)
-  const dlTotal = sum(dl)
-  const irTotal = sum(ir)
-  const sspdTotal = sum(sspd)
-  const minorsTotal = sum(minors)
-  const draftedTotal = sum(drafted)
-  const grandTotal = activeTotal + dlTotal + irTotal + sspdTotal + minorsTotal + draftedTotal
-
-  const remaining = capState ? capState.total_cap - capState.spent : 0
-  const rosterCount = active.length
-  const rosterLimit = config.activeRoster
-  const minorsLimit = config.minorsSlots
-  const draftedLimit = config.draftedSlots || 0
-
-  const summaryRow = (label, value, cls = 'text-txt2') => (
-    <div className="flex justify-between py-1 px-2">
-      <span className={`text-[10px] ${cls}`}>{label}</span>
-      <span className={`font-mono text-[10px] ${cls}`}>${value}</span>
-    </div>
   )
 
   return (
     <div className="bg-surface border border-border rounded overflow-hidden">
-      <div
-        className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3 py-2 border-b border-border flex justify-between items-center"
-        style={{ color: `var(--color-${sport})` }}
-      >
-        <span>{config.label}</span>
-        <span className="text-txt3 font-normal text-[10px]">
-          {capState ? `$${capState.spent}/$${capState.total_cap}` : ''}
+      {/* Sport header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <span className="font-mono text-[11px] font-semibold tracking-wider uppercase" style={{ color: `var(--color-${sport})` }}>
+          {config.label}
+        </span>
+        <span className="font-mono text-[10px] text-txt3">
+          ${capState?.spent ?? total} / ${capState?.total_cap ?? config.cap}
+          <span className={`ml-2 font-semibold ${remaining <= 0 ? 'text-red' : remaining < 20 ? 'text-accent' : 'text-green'}`}>
+            ${remaining} left
+          </span>
         </span>
       </div>
-      <table className="w-full border-collapse text-[12px]">
+
+      <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-left py-1.5 px-2 border-b border-border">Player</th>
+            <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-left py-1.5 px-2.5 border-b border-border">Player</th>
             <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-left py-1.5 px-2 border-b border-border">Pos</th>
+            <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-left py-1.5 px-2 border-b border-border">Status</th>
             <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-right py-1.5 px-2 border-b border-border">'25</th>
             <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-right py-1.5 px-2 border-b border-border">'26</th>
             <th className="font-mono text-[8px] tracking-wider text-txt3 uppercase font-medium text-right py-1.5 px-2 border-b border-border">'27</th>
@@ -137,52 +74,34 @@ function SportRosterTable({ contracts, sport, capState }) {
           </tr>
         </thead>
         <tbody>
-          {renderRows(active)}
-          {renderSection('DL', dl, 'dl')}
-          {renderSection('IR', ir, 'ir')}
-          {renderSection('SSPD', sspd, 'sspd')}
-          {renderSection('Minors', minors, 'minors')}
-          {renderSection('Drafted', drafted, 'drafted')}
+          {active.map(renderRow)}
+          {reserve.map(renderRow)}
+          {minor.map(renderRow)}
         </tbody>
       </table>
 
-      {/* Salary Breakdown Summary */}
-      <div className="border-t border-border bg-surface2 px-1 py-2">
-        <div className="font-mono text-[8px] tracking-wider text-txt3 uppercase px-2 pb-1.5 mb-1 border-b border-border">
-          Salary Breakdown
+      {/* Footer totals */}
+      <div className="border-t border-border bg-surface2 grid grid-cols-3 divide-x divide-border text-center">
+        <div className="py-2">
+          <div className="font-mono text-[9px] text-txt3 uppercase tracking-wider mb-0.5">Active ({active.length}/{config.activeRoster})</div>
+          <div className="font-mono text-[12px] text-txt font-semibold">${activeTotal}</div>
         </div>
-        {summaryRow(`Active Roster (${rosterCount}/${rosterLimit})`, activeTotal)}
-        {dlTotal > 0 && summaryRow(`DL (${dl.length})`, dlTotal)}
-        {irTotal > 0 && summaryRow(`IR (${ir.length})`, irTotal)}
-        {sspdTotal > 0 && summaryRow(`SSPD (${sspd.length})`, sspdTotal)}
-        {minorsTotal > 0 && summaryRow(`Minors (${minors.length}/${minorsLimit})`, minorsTotal)}
-        {draftedTotal > 0 && summaryRow(`Drafted (${drafted.length}/${draftedLimit})`, draftedTotal)}
-        <div className="flex justify-between py-1 px-2 mt-1 border-t border-border">
-          <span className="text-[10px] text-txt font-semibold">Total Spent</span>
-          <span className="font-mono text-[10px] text-accent font-semibold">${grandTotal}</span>
+        <div className="py-2">
+          <div className="font-mono text-[9px] text-txt3 uppercase tracking-wider mb-0.5">Reserve ({reserve.length})</div>
+          <div className="font-mono text-[12px] text-txt font-semibold">${reserveTotal}</div>
         </div>
-        <div className="flex justify-between py-1 px-2">
-          <span className="text-[10px] text-txt font-semibold">Cap Remaining</span>
-          <span className={`font-mono text-[10px] font-semibold ${remaining <= 0 ? 'text-red' : remaining < 20 ? 'text-accent' : 'text-green'}`}>
+        <div className="py-2">
+          <div className="font-mono text-[9px] text-txt3 uppercase tracking-wider mb-0.5">Cap Left</div>
+          <div className={`font-mono text-[12px] font-semibold ${remaining <= 0 ? 'text-red' : remaining < 20 ? 'text-accent' : 'text-green'}`}>
             ${remaining}
-          </span>
-        </div>
-        <div className="flex justify-between py-1 px-2">
-          <span className="text-[10px] text-txt3">Salary Cap</span>
-          <span className="font-mono text-[10px] text-txt3">${capState?.total_cap || config.cap}</span>
-        </div>
-        {capState?.amnesty_used && (
-          <div className="flex justify-between py-1 px-2">
-            <span className="text-[10px] text-txt3">Amnesty</span>
-            <span className="font-mono text-[10px] text-accent">USED</span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
 }
 
-function TeamRosterView({ teamId, teamName, capStates, sportFilter }) {
+function TeamDetailView({ teamId, teamName, capStates, onClose }) {
   const { data: contracts, isLoading } = useQuery({
     queryKey: ['team_roster_all', teamId],
     queryFn: async () => {
@@ -198,55 +117,39 @@ function TeamRosterView({ teamId, teamName, capStates, sportFilter }) {
     enabled: !!teamId,
   })
 
-  if (isLoading) {
-    return <div className="text-txt3 text-center py-8 font-mono text-[11px]">Loading roster...</div>
-  }
-
-  const sportsToShow = sportFilter ? [sportFilter] : ['nfl', 'nba', 'mlb']
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-        <h2 className="font-condensed text-[18px] font-bold text-txt">{teamName}</h2>
-        <div className="flex gap-2">
-          {['nfl', 'nba', 'mlb'].map(sport => {
-            const cs = capStates?.find(c => c.team_id === teamId && c.sport === sport)
-            const remaining = cs ? cs.total_cap - cs.spent : 0
-            return (
-              <span key={sport} className="font-mono text-[11px] px-2 py-0.5 rounded-sm border"
-                style={{
-                  color: `var(--color-${sport})`,
-                  borderColor: `color-mix(in srgb, var(--color-${sport}) 30%, transparent)`,
-                  background: `color-mix(in srgb, var(--color-${sport}) 6%, transparent)`,
-                }}>
-                {SPORT_CONFIG[sport].label} ${remaining}
-              </span>
-            )
-          })}
-        </div>
+    <div className="mt-6 pt-6 border-t border-border">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-condensed text-[20px] font-bold text-txt">{teamName}</h2>
+        <button
+          onClick={onClose}
+          className="font-mono text-[10px] tracking-wider uppercase text-txt3 hover:text-txt cursor-pointer bg-transparent border-none px-2 py-1"
+        >
+          ✕ Close
+        </button>
       </div>
 
-      <div className={`grid gap-3 ${sportsToShow.length === 1 ? 'grid-cols-1 max-w-2xl' : 'grid-cols-3'}`}>
-        {sportsToShow.map(sport => (
-          <SportRosterTable
-            key={sport}
-            contracts={(contracts || []).filter(c => c.sport === sport)}
-            sport={sport}
-            capState={capStates?.find(c => c.team_id === teamId && c.sport === sport)}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-txt3 text-center py-8 font-mono text-[11px]">Loading...</div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {SPORTS.map(sport => (
+            <SportDetailTable
+              key={sport}
+              contracts={(contracts || []).filter(c => c.sport === sport)}
+              sport={sport}
+              capState={capStates?.find(c => c.team_id === teamId && c.sport === sport)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function LeagueOverview() {
-  const { data: capStates, isLoading } = useAllTeamsCapState()
-  const [selectedTeam, setSelectedTeam] = useState(null)
-  const [selectedTeamName, setSelectedTeamName] = useState(null)
-  const [sportFilter, setSportFilter] = useState(null)
-
-  // Build unique team list from cap states
+// ─── Main cap table: all teams × all sports ──────────────────────────────────
+function CapTable({ capStates, onTeamClick, selectedTeam }) {
+  // Build sorted team list
   const teams = []
   const seen = new Set()
   if (capStates) {
@@ -259,6 +162,88 @@ export default function LeagueOverview() {
     teams.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   }
 
+  const getCs = (teamId, sport) => capStates?.find(c => c.team_id === teamId && c.sport === sport)
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse min-w-[700px]">
+        <thead>
+          <tr>
+            <th className="font-mono text-[9px] tracking-wider text-txt3 uppercase font-medium text-left py-2 px-3 border-b border-border w-[130px]">
+              Team
+            </th>
+            {SPORTS.map(sport => (
+              <th key={sport} colSpan={3}
+                className="font-mono text-[9px] tracking-wider uppercase font-semibold text-center py-2 px-2 border-b border-border"
+                style={{ color: `var(--color-${sport})` }}
+              >
+                {SPORT_CONFIG[sport].label} <span className="font-normal text-txt3">(${SPORT_CONFIG[sport].cap})</span>
+              </th>
+            ))}
+          </tr>
+          <tr className="bg-surface2">
+            <th className="py-1.5 px-3 border-b border-border" />
+            {SPORTS.map(sport => (
+              <>
+                <th key={`${sport}-spent`} className="font-mono text-[8px] text-txt3 uppercase tracking-wider font-medium text-right py-1.5 px-2 border-b border-border">Spent</th>
+                <th key={`${sport}-rem`} className="font-mono text-[8px] text-txt3 uppercase tracking-wider font-medium text-right py-1.5 px-2 border-b border-border">Remaining</th>
+                <th key={`${sport}-n`} className="font-mono text-[8px] text-txt3 uppercase tracking-wider font-medium text-center py-1.5 px-2 border-b border-border">Roster</th>
+              </>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {teams.map(team => {
+            const isSelected = selectedTeam === team.id
+            return (
+              <tr
+                key={team.id}
+                onClick={() => onTeamClick(team.id, team.name)}
+                className={`border-b border-border cursor-pointer transition-colors ${isSelected ? 'bg-surface3' : 'hover:bg-surface2'}`}
+              >
+                <td className={`py-2.5 px-3 text-[13px] font-medium ${isSelected ? 'text-accent' : 'text-txt'}`}>
+                  {team.name}
+                </td>
+                {SPORTS.map(sport => {
+                  const cs = getCs(team.id, sport)
+                  const cap = cs?.total_cap ?? SPORT_CONFIG[sport].cap
+                  const spent = cs?.spent ?? 0
+                  const remaining = cap - spent
+                  const pct = (spent / cap) * 100
+                  const remColor = remaining <= 0 ? 'var(--color-red)' : remaining < 20 ? 'var(--color-accent)' : 'var(--color-green)'
+                  return (
+                    <>
+                      <td key={`${sport}-spent`} className="py-2.5 px-2 font-mono text-[12px] text-txt2 text-right">${spent}</td>
+                      <td key={`${sport}-rem`} className="py-2.5 px-2 font-mono text-[12px] text-right font-semibold" style={{ color: remColor }}>
+                        ${remaining}
+                      </td>
+                      <td key={`${sport}-n`} className="py-2.5 px-2 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-full max-w-[40px] bg-surface3 rounded-[1px] h-[3px]">
+                            <div className="h-full rounded-[1px]"
+                              style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: `var(--color-${sport})`, opacity: 0.6 }} />
+                          </div>
+                          <span className="font-mono text-[9px] text-txt3">{Math.round(pct)}%</span>
+                        </div>
+                      </td>
+                    </>
+                  )
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
+export default function LeagueOverview() {
+  const { data: capStates, isLoading } = useAllTeamsCapState()
+  const [selectedTeam, setSelectedTeam] = useState(null)
+  const [selectedTeamName, setSelectedTeamName] = useState(null)
+
   function handleTeamClick(teamId, teamName) {
     if (selectedTeam === teamId) {
       setSelectedTeam(null)
@@ -266,80 +251,45 @@ export default function LeagueOverview() {
     } else {
       setSelectedTeam(teamId)
       setSelectedTeamName(teamName)
+      // Scroll to detail panel after a tick
+      setTimeout(() => document.getElementById('team-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
     }
   }
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6 pb-4 border-b border-border">
-        <div>
-          <h1 className="font-condensed text-[22px] font-bold tracking-tight text-txt leading-none mb-1">
-            League Overview
-          </h1>
-          <span className="text-[12px] text-txt2 font-mono">
-            All 10 Teams &mdash; click a team to view full roster
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Team dropdown */}
-          <select
-            value={selectedTeam || ''}
-            onChange={e => {
-              const id = e.target.value
-              if (!id) { setSelectedTeam(null); setSelectedTeamName(null); return }
-              const t = teams.find(t => t.id === id)
-              setSelectedTeam(id)
-              setSelectedTeamName(t?.name)
-            }}
-            className="bg-surface2 border border-border2 text-txt font-mono text-[11px] px-3 py-1.5 rounded-sm cursor-pointer outline-none focus:border-accent"
-          >
-            <option value="">All Teams</option>
-            {teams.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-
-          {/* Sport filter dropdown (when team selected) */}
-          {selectedTeam && (
-            <select
-              value={sportFilter || ''}
-              onChange={e => setSportFilter(e.target.value || null)}
-              className="bg-surface2 border border-border2 text-txt font-mono text-[11px] px-3 py-1.5 rounded-sm cursor-pointer outline-none focus:border-accent"
-            >
-              <option value="">All Sports</option>
-              <option value="nfl">NFL</option>
-              <option value="nba">NBA</option>
-              <option value="mlb">MLB</option>
-            </select>
-          )}
-        </div>
+      <div className="mb-6 pb-4 border-b border-border">
+        <h1 className="font-condensed text-[22px] font-bold tracking-tight text-txt leading-none mb-1">
+          League Overview
+        </h1>
+        <span className="text-[12px] text-txt2 font-mono">
+          Cap breakdown — click any team for full roster
+        </span>
       </div>
 
       {isLoading ? (
-        <div className="text-txt3 text-center py-12 font-mono text-[11px]">Loading...</div>
+        <div className="grid gap-2">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="h-10 bg-surface2 rounded animate-pulse" />
+          ))}
+        </div>
       ) : (
         <>
-          {/* Cap bars */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {['nfl', 'nba', 'mlb'].map(sport => (
-              <SportCapCard
-                key={sport}
-                sport={sport}
-                capStates={capStates}
-                onTeamClick={handleTeamClick}
-                selectedTeam={selectedTeam}
-              />
-            ))}
-          </div>
+          <CapTable
+            capStates={capStates}
+            onTeamClick={handleTeamClick}
+            selectedTeam={selectedTeam}
+          />
 
-          {/* Team roster detail */}
           {selectedTeam && (
-            <TeamRosterView
-              teamId={selectedTeam}
-              teamName={selectedTeamName}
-              capStates={capStates}
-              sportFilter={sportFilter}
-            />
+            <div id="team-detail">
+              <TeamDetailView
+                teamId={selectedTeam}
+                teamName={selectedTeamName}
+                capStates={capStates}
+                onClose={() => { setSelectedTeam(null); setSelectedTeamName(null) }}
+              />
+            </div>
           )}
         </>
       )}
