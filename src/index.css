@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0c0f;
+  --color-surface: #111417;
+  --color-surface2: #181c21;
+  --color-surface3: #1f242b;
+  --color-border: #252b33;
+  --color-border2: #2e3640;
+  --color-txt: #e8edf2;
+  --color-txt2: #8a9ab0;
+  --color-txt3: #4a5568;
+  --color-accent: #f5a623;
+  --color-accent2: #e8950f;
+  --color-green: #22c55e;
+  --color-green-dim: #15803d;
+  --color-red: #ef4444;
+  --color-red-dim: #991b1b;
+  --color-blue: #3b82f6;
+  --color-blue-dim: #1d4ed8;
+  --color-nfl: #f5a623;
+  --color-nba: #3b82f6;
+  --color-mlb: #22c55e;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-condensed: 'IBM Plex Sans Condensed', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-txt);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-txt3); }
+
+select, input[type="text"], input[type="number"], input[type="email"], input[type="search"] {
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border2);
+  color: var(--color-txt);
+  padding: 9px 12px;
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  width: 100%;
+  appearance: none;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+select:focus, input:focus { border-color: var(--color-accent); }
+input::placeholder { color: var(--color-txt3); }
