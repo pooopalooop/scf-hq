@@ -137,9 +137,9 @@ export default function SearchableSelect({
           disabled={disabled}
           autoComplete="off"
           className="w-full bg-surface2 border border-border2 text-txt px-3 py-2.5 rounded-sm font-body text-[13px] outline-none focus:border-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ paddingRight: showClear ? '28px' : undefined }}
+          style={{ paddingRight: '28px' }}
         />
-        {showClear && (
+        {showClear ? (
           <button
             type="button"
             onMouseDown={handleClear}
@@ -148,6 +148,13 @@ export default function SearchableSelect({
           >
             ✕
           </button>
+        ) : (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-txt3">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M7.5 7.5L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
         )}
       </div>
 
