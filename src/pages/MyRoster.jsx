@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
@@ -7,6 +7,20 @@ import { useActiveSport } from '../lib/sportContext'
 import { supabase, isConfigured } from '../lib/supabase'
 import { toast } from '../lib/toast'
 import SportTabs from '../components/SportTabs'
+
+const DL_MIN_MS = 5 * 24 * 60 * 60 * 1000
+
+function msUntilEligible(placedAt) {
+  if (!placedAt) return 0
+  return Math.max(0, new Date(placedAt).getTime() + DL_MIN_MS - Date.now())
+}
+
+function fmtCountdown(ms) {
+  if (ms <= 0) return null
+  const d = Math.floor(ms / 86400000)
+  const h = Math.floor((ms % 86400000) / 3600000)
+  return d > 0 ? `${d}d ${h}h` : `${h}h`
+}
 
 const STATUS_BADGES = {
   active: { label: 'ACTIVE', className: 'bg-[rgba(148,163,184,0.1)] text-txt2 border border-border2' },
@@ -112,7 +126,37 @@ function ReleaseConfirm({ contract, capState, sport, onConfirm, onCancel, isPend
 
 function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
   const [releasingId, setReleasingId] = useState(null)
+  const [activatingId, setActivatingId] = useState(null)
   const queryClient = useQueryClient()
+
+  const activateMutation = useMutation({
+    mutationFn: async (contract) => {
+      const now = new Date().toISOString()
+      const { error } = await supabase
+        .from('contracts')
+        .update({ status: 'active', placed_at: null, updated_at: now })
+        .eq('id', contract.id)
+      if (error) throw error
+      await supabase.from('transactions').insert({
+        type: 'activate',
+        team_id: team.id,
+        player_id: contract.player_id,
+        sport,
+        notes: `${contract.players?.name} activated from ${contract.status.toUpperCase()}`,
+      })
+      return contract
+    },
+    onSuccess: (contract) => {
+      setActivatingId(null)
+      queryClient.invalidateQueries({ queryKey: ['roster'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      toast(`${contract.players?.name} activated`, 'success')
+    },
+    onError: () => {
+      setActivatingId(null)
+      toast('Activation failed — try again', 'error')
+    },
+  })
 
   const releaseMutation = useMutation({
     mutationFn: async ({ contract, option }) => {
@@ -178,7 +222,60 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
   const sspd = contracts.filter(c => c.status === 'sspd').sort(byName)
   const minors = contracts.filter(c => c.status === 'minors' || c.status === 'drafted').sort(byName)
 
-  const renderSection = (label, players, showStatus = false, showRelease = false) => {
+  const renderActionCell = (contract) => {
+    const st = contract.status
+    if (st === 'active') {
+      return releasingId !== contract.id ? (
+        <button
+          onClick={() => setReleasingId(contract.id)}
+          className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border border-red bg-transparent text-red hover:bg-[rgba(239,68,68,0.08)] transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+        >
+          Release
+        </button>
+      ) : null
+    }
+    if (st === 'dl') {
+      const ms = msUntilEligible(contract.placed_at)
+      const locked = ms > 0
+      if (locked) {
+        return <span className="font-mono text-[10px] text-txt3">Eligible in {fmtCountdown(ms)}</span>
+      }
+      return (
+        <button
+          onClick={() => { setActivatingId(contract.id); activateMutation.mutate(contract) }}
+          disabled={activatingId === contract.id}
+          className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border border-accent bg-transparent text-accent hover:bg-[rgba(245,166,35,0.08)] transition-colors cursor-pointer disabled:opacity-50 opacity-0 group-hover:opacity-100"
+        >
+          {activatingId === contract.id ? '...' : 'Activate'}
+        </button>
+      )
+    }
+    if (st === 'ir' || st === 'sspd') {
+      return (
+        <button
+          onClick={() => { setActivatingId(contract.id); activateMutation.mutate(contract) }}
+          disabled={activatingId === contract.id}
+          className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border border-accent bg-transparent text-accent hover:bg-[rgba(245,166,35,0.08)] transition-colors cursor-pointer disabled:opacity-50 opacity-0 group-hover:opacity-100"
+        >
+          {activatingId === contract.id ? '...' : 'Activate'}
+        </button>
+      )
+    }
+    if (st === 'minors') {
+      return (
+        <button
+          onClick={() => { setActivatingId(contract.id); activateMutation.mutate(contract) }}
+          disabled={activatingId === contract.id}
+          className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border border-green bg-transparent text-green hover:bg-[rgba(34,197,94,0.08)] transition-colors cursor-pointer disabled:opacity-50 opacity-0 group-hover:opacity-100"
+        >
+          {activatingId === contract.id ? '...' : 'Call Up'}
+        </button>
+      )
+    }
+    return null
+  }
+
+  const renderSection = (label, players, showStatus = false) => {
     if (players.length === 0) return null
     return (
       <>
@@ -216,14 +313,7 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
                 {contract.year4 ? `$${contract.year4}` : '—'}
               </td>
               <td className="py-2.5 px-3 text-right">
-                {showRelease && releasingId !== contract.id && (
-                  <button
-                    onClick={() => setReleasingId(contract.id)}
-                    className="font-mono text-[10px] font-semibold tracking-wider uppercase py-1 px-2.5 rounded-sm border border-red bg-transparent text-red hover:bg-[rgba(239,68,68,0.08)] transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
-                  >
-                    Release
-                  </button>
-                )}
+                {renderActionCell(contract)}
               </td>
             </tr>
             {releasingId === contract.id && (
@@ -245,7 +335,7 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
   }
 
   return (
-    <div className="bg-surface border border-border rounded overflow-hidden">
+    <div className="bg-surface border border-border rounded overflow-x-auto">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
@@ -260,7 +350,7 @@ function RosterTable({ contracts, sport, team, capState, onCapUpdate }) {
           </tr>
         </thead>
         <tbody>
-          {renderSection(null, active, false, true)}
+          {renderSection(null, active, true)}
           {renderSection('Disabled List', dl, true)}
           {renderSection('Injured Reserve', ir, true)}
           {renderSection('Suspended', sspd, true)}

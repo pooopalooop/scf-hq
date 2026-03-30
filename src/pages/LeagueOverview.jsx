@@ -5,6 +5,7 @@ import { SPORT_CONFIG } from '../lib/constants'
 import { supabase, isConfigured } from '../lib/supabase'
 import { DEMO_CONTRACTS } from '../lib/demoData'
 import { useGlobalSport } from '../lib/sportContext'
+import { SkeletonCard } from '../components/Skeleton'
 
 // ── Compact 3-column cap card (used in ALL mode) ────────────────────────────
 function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
@@ -13,7 +14,7 @@ function SportCapCard({ sport, capStates, onTeamClick, selectedTeam }) {
     .sort((a, b) => (a.teams?.name || '').localeCompare(b.teams?.name || ''))
 
   return (
-    <div className="bg-surface border border-border rounded overflow-hidden">
+    <div className="bg-surface border border-border rounded overflow-x-auto">
       <div
         className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3.5 py-2.5 border-b border-border flex justify-between items-center"
         style={{ color: `var(--color-${sport})` }}
@@ -54,7 +55,7 @@ function SportCapRowExpanded({ sport, capStates, allContracts, onTeamClick, sele
     .sort((a, b) => (a.teams?.name || '').localeCompare(b.teams?.name || ''))
 
   return (
-    <div className="bg-surface border border-border rounded overflow-hidden">
+    <div className="bg-surface border border-border rounded overflow-x-auto">
       <div
         className="font-mono text-[11px] font-semibold tracking-wider uppercase px-4 py-3 border-b border-border flex justify-between items-center"
         style={{ color: `var(--color-${sport})` }}
@@ -215,7 +216,7 @@ function SportRosterTable({ contracts, sport, capState }) {
   )
 
   return (
-    <div className="bg-surface border border-border rounded overflow-hidden">
+    <div className="bg-surface border border-border rounded overflow-x-auto">
       <div
         className="font-mono text-[11px] font-semibold tracking-wider uppercase px-3 py-2 border-b border-border flex justify-between items-center"
         style={{ color: `var(--color-${sport})` }}
@@ -418,7 +419,20 @@ export default function LeagueOverview() {
       </div>
 
       {isLoading ? (
-        <div className="text-txt3 text-center py-12 font-mono text-[11px]">Loading...</div>
+        isSingleSport ? (
+          <div className="space-y-2">
+            {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {['nfl', 'nba', 'mlb'].map(s => (
+              <div key={s} className="space-y-2">
+                <div className="h-8 bg-surface2 rounded animate-pulse" />
+                {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ))}
+          </div>
+        )
       ) : (
         <>
           {isSingleSport ? (

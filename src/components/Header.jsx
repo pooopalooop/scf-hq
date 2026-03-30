@@ -64,6 +64,7 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
         {['nfl', 'nba', 'mlb'].map(sport => (
           <div
             key={sport}
@@ -77,6 +78,7 @@ export default function Header() {
             {SPORT_CONFIG[sport].label} ${capBySport[sport] ?? '—'}
           </div>
         ))}
+        </div>
 
         {user && (
           <button

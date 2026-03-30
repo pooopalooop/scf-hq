@@ -111,7 +111,7 @@ function ReserveTab({ sport, onSuccessSwitch }) {
           notes: note || `${contract.players?.name} moved to ${destId.toUpperCase()}`,
           submitted_by: null,
         })
-      if (txErr) throw txErr
+      if (txErr) console.warn('Transaction log failed (non-blocking):', txErr.message)
     },
     onSuccess: () => {
       const playerName = selectedContract?.players?.name
@@ -319,7 +319,7 @@ function ActivateTab({ sport, highlightId }) {
           sport,
           notes: txNote,
         })
-      if (txErr) throw txErr
+      if (txErr) console.warn('Transaction log failed (non-blocking):', txErr.message)
 
       return contract
     },
@@ -343,7 +343,7 @@ function ActivateTab({ sport, highlightId }) {
           <div className="font-mono text-[11px] text-txt3">No players on DL, IR, or SSPD for {sport.toUpperCase()}</div>
         </div>
       ) : (
-        <div className="bg-surface border border-border rounded overflow-hidden">
+        <div className="bg-surface border border-border rounded overflow-x-auto">
           <div className="font-mono text-[10px] tracking-wider text-txt3 uppercase px-4 py-3 border-b border-border flex items-center justify-between">
             <span>Players on Reserve — {sport.toUpperCase()}</span>
             <span className="text-[9px]">Section 11 activation rules enforced</span>

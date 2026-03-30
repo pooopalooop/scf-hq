@@ -5,7 +5,7 @@ import { supabase, isConfigured } from '../lib/supabase'
 import { SPORT_CONFIG } from '../lib/constants'
 import { useTeamRoster, useTeamCapState } from '../hooks/useTeamData'
 import { SkeletonCard, SkeletonTable } from '../components/Skeleton'
-import { useGlobalSport } from '../lib/sportContext'
+import { useActiveSport } from '../lib/sportContext'
 
 const DL_MIN_MS = 5 * 24 * 60 * 60 * 1000
 
@@ -96,7 +96,7 @@ function fmtCountdown(ms) {
 
 export default function HomePage({ onNavigate }) {
   const { team } = useAuth()
-  const { globalSport } = useGlobalSport()
+  const globalSport = useActiveSport()
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function HomePage({ onNavigate }) {
       const { data } = await supabase
         .from('transactions')
         .select('*, teams(name)')
-        .order('created_at', { ascending: false })
+        .order('timestamp', { ascending: false })
         .limit(5)
       return data || []
     },
@@ -189,7 +189,7 @@ export default function HomePage({ onNavigate }) {
         title: `${c.players?.name} — eligible to activate`,
         subtitle: `${c.sport?.toUpperCase()} · DL · $${c.salary}`,
         sportBadge: c.sport,
-        actionLabel: 'Activate',
+        actionLabel: 'Go to Activate →',
         action: () => onNavigate('make-a-move'),
       })
     }
@@ -205,7 +205,7 @@ export default function HomePage({ onNavigate }) {
         title: `${c.players?.name} — suspension ended, needs activation`,
         subtitle: `${c.sport?.toUpperCase()} · SSPD · Returned ${fmtDate(c.returned_at)}`,
         sportBadge: c.sport,
-        actionLabel: 'Activate',
+        actionLabel: 'Go to Activate →',
         action: () => onNavigate('make-a-move'),
       })
     }
@@ -329,7 +329,7 @@ export default function HomePage({ onNavigate }) {
                       </div>
                     </div>
                     <div className="font-mono text-[10px] text-txt3 flex-shrink-0">
-                      {tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                      {tx.timestamp ? new Date(tx.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                     </div>
                   </div>
                 ))}

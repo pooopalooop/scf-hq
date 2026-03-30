@@ -98,7 +98,7 @@ function ActiveBidsTab({ sport, onOutbid }) {
   )
 }
 
-function SubmitBidTab({ sport, prefillBid }) {
+function SubmitBidTab({ sport, prefillBid, onCancel }) {
   const { team } = useAuth()
   const { data: capStates } = useTeamCapState(team?.id)
   const { data: allContracts } = useTeamRoster(team?.id)
@@ -114,6 +114,7 @@ function SubmitBidTab({ sport, prefillBid }) {
   const [manualPos, setManualPos] = useState('')
   const [manualTeam, setManualTeam] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(null)
+  const [touched, setTouched] = useState(!!prefillBid)
   const [nominationError, setNominationError] = useState('')
 
   const capState = capStates?.find(cs => cs.sport === sport)
@@ -168,7 +169,7 @@ function SubmitBidTab({ sport, prefillBid }) {
 
   const checks = {
     capSpace: salaryNum > 0 ? (salaryNum <= capRemaining ? 'pass' : 'fail') : 'pending',
-    rosterSpot: rosterUsed < rosterLimit ? 'pass' : (correspondingMove ? 'pass' : 'fail'),
+    rosterSpot: !touched ? 'pending' : (rosterUsed < rosterLimit ? 'pass' : (correspondingMove ? 'pass' : 'fail')),
     bidValid: salaryNum > 0 && years >= 1 && years <= 3 ? 'pass' : 'pending',
     wholeNumber: salaryNum > 0 ? (Number.isInteger(parseFloat(salary)) ? 'pass' : 'fail') : 'pending',
   }
@@ -178,6 +179,7 @@ function SubmitBidTab({ sport, prefillBid }) {
   async function handleSearch(query) {
     setPlayerName(query)
     setNominationError('')
+    setTouched(true)
     if (query.length < 2) { setShowDropdown(false); return }
 
     if (sport === 'mlb') {
@@ -325,8 +327,11 @@ function SubmitBidTab({ sport, prefillBid }) {
       <div className="grid grid-cols-2 gap-4">
         {/* Left: Player + Bid Form */}
         <div className="bg-surface border border-border rounded p-5">
-          <div className="font-mono text-[10px] tracking-wider text-txt3 uppercase mb-4 pb-2.5 border-b border-border">
-            {prefillBid ? 'Your Bid' : 'Submit New Bid'}
+          <div className="font-mono text-[10px] tracking-wider text-txt3 uppercase mb-4 pb-2.5 border-b border-border flex items-center justify-between">
+            <span>{prefillBid ? 'Your Bid' : 'Submit New Bid'}</span>
+            {onCancel && (
+              <button onClick={onCancel} className="text-txt3 hover:text-txt2 font-mono text-[14px] leading-none cursor-pointer transition-colors" title="Cancel">✕</button>
+            )}
           </div>
 
           {/* Player Search */}
@@ -531,7 +536,11 @@ export default function FaBidTrackerPage() {
         <ActiveBidsTab sport={sport} onOutbid={handleOutbid} />
       )}
       {activeTab === 'submit' && (
-        <SubmitBidTab sport={sport} prefillBid={outbidTarget} />
+        <SubmitBidTab
+          sport={sport}
+          prefillBid={outbidTarget}
+          onCancel={() => { setActiveTab('active'); setOutbidTarget(null) }}
+        />
       )}
     </div>
   )
